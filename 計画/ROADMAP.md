@@ -14,9 +14,9 @@ PythonソースコードのAST（抽象構文木）をグラフ形式に変換�
 ### Phase 1: 基本機能実装（2週間）
 
 #### Week 1: コア機能開発
-- [ ] **データ構造の定義** `[優先度: 高]`
-  - [ ] models.py - 基本データクラス（ASTGraphNode, ASTGraphEdge, EdgeType）
-  - [ ] graph_structure.py - グラフ管理クラス（GraphStructure, SourceInfo）
+- [x] **データ構造の定義** `[優先度: 高]` ✅ 2025-07-02完了
+  - [x] models.py - 基本データクラス（ASTGraphNode, ASTGraphEdge, EdgeType）
+  - [x] graph_structure.py - グラフ管理クラス（GraphStructure, SourceInfo）
   - [ ] batch_types.py - バッチ処理用データ型
   - [ ] config.py - 設定データ型
 
@@ -109,6 +109,16 @@ PythonソースコードのAST（抽象構文木）をグラフ形式に変換�
   - [ ] メトリクス収集
   - [ ] デバッグモードの実装
 
+- [ ] **実装済み機能のテスト** `[優先度: 高]`
+  - [ ] models.pyの単体テスト作成
+  - [ ] graph_structure.pyの単体テスト作成
+  - [ ] エッジケースのテスト追加
+
+- [ ] **パーサー機能の詳細設計** `[優先度: 高]`
+  - [ ] サポートするPythonバージョンの決定
+  - [ ] エラーリカバリー戦略の策定
+  - [ ] 大規模ファイル対応の考慮
+
 ## 成功指標
 - ✅ AST→グラフ変換100%正確性
 - ✅ 300ファイル/10分以内の処理速度
@@ -123,3 +133,4 @@ PythonソースコードのAST（抽象構文木）をグラフ形式に変換�
 
 ## 更新履歴
 - 2025-07-02: 初版作成
+- 2025-07-03: データ構造実装完了、追加検討事項追加
