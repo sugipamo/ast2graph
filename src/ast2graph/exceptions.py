@@ -72,6 +72,25 @@ class ParseError(AST2GraphError):
         self.file_path = file_path
 
 
+class FileReadError(AST2GraphError):
+    """Raised when file reading operations fail."""
+    
+    def __init__(self, file_path: str, error: Exception) -> None:
+        """Initialize file read error with path and original error."""
+        message = f"Failed to read file: {file_path}"
+        if isinstance(error, FileNotFoundError):
+            message = f"File not found: {file_path}"
+        elif isinstance(error, PermissionError):
+            message = f"Permission denied: {file_path}"
+        elif isinstance(error, UnicodeDecodeError):
+            message = f"Encoding error in file: {file_path}"
+        else:
+            message = f"{message} ({type(error).__name__}: {str(error)})"
+        
+        super().__init__(message, {"file_path": file_path, "error_type": type(error).__name__})
+        self.original_error = error
+
+
 class GraphBuildError(AST2GraphError):
     """Raised when graph construction fails."""
     
