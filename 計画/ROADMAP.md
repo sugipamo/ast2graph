@@ -44,7 +44,7 @@ PythonソースコードのAST（抽象構文木）をグラフ形式に変換�
 
 - [x] **API設計** `[優先度: 高]` ✅ 2025-07-03完了
   - [x] 高レベルAPI（parse_file, parse_code, parse_directory）
-  - [ ] 中レベルAPI（ASTProcessor, BatchProcessor）
+  - [ ] ~~中レベルAPI（ASTProcessor, BatchProcessor）~~ [不要: 高レベルAPIで十分]
   - [x] エラーハンドリングと例外階層
 
 ### Phase 2: 性能最適化とバッチ処理（2週間）
@@ -185,6 +185,18 @@ PythonソースコードのAST（抽象構文木）をグラフ形式に変換�
 12. APIドキュメントの作成
 13. CLIツールの実装
 
+## 実装済み機能の詳細（2025-07-03時点）
+- **全141個のユニットテストが成功**
+- **実装済みモジュール:**
+  - models.py - データモデル（EdgeType, ASTGraphNode, ASTGraphEdge）
+  - parser.py - AST解析機能（エンコーディング対応、エラーハンドリング含む）
+  - graph_builder.py - グラフ構築（決定的ID生成、親子関係追跡）
+  - graph_structure.py - グラフデータ管理（検証機能、統計情報含む）
+  - graph_exporter.py - エクスポート機能（dict/JSON/ファイル出力対応）
+  - dependency_extractor.py - 依存関係抽出（import文、関数呼び出し、クラスインスタンス化）
+  - api.py - 高レベルAPI（parse_file, parse_code, parse_directory, parse_files_stream）
+  - exceptions.py - 例外階層（9種類の特定例外クラス）
+
 ## 更新履歴
 - 2025-07-02: 初版作成
 - 2025-07-03: データ構造実装完了、追加検討事項追加
@@ -198,3 +210,4 @@ PythonソースコードのAST（抽象構文木）をグラフ形式に変換�
 - 2025-07-03: テスト修正完了、全118個のテストが成功
 - 2025-07-03: プロジェクト現状確認、成功指標追加、次のアクション整理
 - 2025-07-03: 依存関係抽出機能実装完了、新しいEdgeType追加（IMPORTS, USES, INSTANTIATES）
+- 2025-07-03: 実装済み機能の詳細セクション追加、141個のテスト全成功確認
