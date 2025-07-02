@@ -57,7 +57,7 @@ class GraphBuilder:
         """
         # Create graph node
         graph_node = self._create_node(node)
-        node_id = graph_node.id
+        node_id = graph_node.node_id
         
         # Add node to graph
         self.graph.add_node(graph_node)

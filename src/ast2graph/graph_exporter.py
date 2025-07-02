@@ -41,7 +41,7 @@ class GraphExporter:
         try:
             result: Dict[str, Any] = {
                 "version": "1.0.0",
-                "nodes": self._export_nodes(),
+                "nodes": self._export_nodes(include_metadata),
                 "edges": self._export_edges(),
             }
             
@@ -134,7 +134,7 @@ class GraphExporter:
             stream.write('  "nodes": [\n')
             nodes = list(self.graph.nodes.values())
             for i, node in enumerate(nodes):
-                node_dict = self._node_to_dict(node)
+                node_dict = self._node_to_dict(node, include_metadata)
                 json_str = json.dumps(node_dict, indent=indent, ensure_ascii=False)
                 # インデント調整
                 if indent:
@@ -177,24 +177,26 @@ class GraphExporter:
         except Exception as e:
             raise ExportError(f"Failed to export graph to stream: {str(e)}") from e
     
-    def _export_nodes(self) -> List[Dict[str, Any]]:
+    def _export_nodes(self, include_metadata: bool = True) -> List[Dict[str, Any]]:
         """全ノードを辞書のリストに変換する。"""
-        return [self._node_to_dict(node) for node in self.graph.nodes.values()]
+        return [self._node_to_dict(node, include_metadata) for node in self.graph.nodes.values()]
     
     def _export_edges(self) -> List[Dict[str, Any]]:
         """全エッジを辞書のリストに変換する。"""
         return [self._edge_to_dict(edge) for edge in self.graph.edges]
     
-    def _node_to_dict(self, node: ASTGraphNode) -> Dict[str, Any]:
+    def _node_to_dict(self, node: ASTGraphNode, include_metadata: bool = True) -> Dict[str, Any]:
         """ノードを辞書に変換する。"""
-        return {
+        result = {
             "id": node.node_id,
             "type": node.node_type,
             "label": node.label,
             "ast_node_info": node.ast_node_info,
             "source_location": node.source_location,
-            "metadata": node.metadata or {}
         }
+        if include_metadata:
+            result["metadata"] = node.metadata or {}
+        return result
     
     def _edge_to_dict(self, edge: ASTGraphEdge) -> Dict[str, Any]:
         """エッジを辞書に変換する。"""
