@@ -18,10 +18,13 @@ class TestEdgeType:
         assert EdgeType.CALLS.value == "CALLS"
         assert EdgeType.DEFINES.value == "DEFINES"
         assert EdgeType.REFERENCES.value == "REFERENCES"
+        assert EdgeType.IMPORTS.value == "IMPORTS"
+        assert EdgeType.USES.value == "USES"
+        assert EdgeType.INSTANTIATES.value == "INSTANTIATES"
     
     def test_edge_type_members(self):
         """Test EdgeType members."""
-        expected_members = {"CHILD", "NEXT", "DEPENDS_ON", "CALLS", "DEFINES", "REFERENCES"}
+        expected_members = {"CHILD", "NEXT", "DEPENDS_ON", "CALLS", "DEFINES", "REFERENCES", "IMPORTS", "USES", "INSTANTIATES"}
         actual_members = {member.name for member in EdgeType}
         assert actual_members == expected_members
 

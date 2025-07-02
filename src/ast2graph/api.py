@@ -14,6 +14,7 @@ from .graph_builder import GraphBuilder
 from .graph_exporter import GraphExporter
 from .graph_structure import GraphStructure, SourceInfo
 from .exceptions import ParseError, GraphBuildError, FileReadError
+from .dependency_extractor import DependencyExtractor
 
 
 def parse_file(
@@ -21,7 +22,8 @@ def parse_file(
     output_format: str = "dict",
     include_metadata: bool = True,
     include_source_info: bool = True,
-    encoding: str = "utf-8"
+    encoding: str = "utf-8",
+    extract_dependencies: bool = False
 ) -> Union[Dict[str, Any], str, GraphStructure]:
     """単一のPythonファイルを解析してグラフに変換する。
     
@@ -31,6 +33,7 @@ def parse_file(
         include_metadata: メタデータを含めるか
         include_source_info: ソース情報を含めるか
         encoding: ファイルエンコーディング
+        extract_dependencies: 依存関係を抽出するか
         
     Returns:
         指定された形式でのグラフデータ
@@ -70,6 +73,17 @@ def parse_file(
         graph = builder.build_graph()
     except Exception as e:
         raise GraphBuildError(f"Failed to build graph for {file_path}: {str(e)}")
+    
+    # 依存関係抽出（オプション）
+    if extract_dependencies:
+        extractor = DependencyExtractor()
+        # モジュールノードを取得（通常は最初のノード）
+        module_node_id = None
+        for node_id, node in graph.nodes.items():
+            if node.node_type == "Module":
+                module_node_id = node_id
+                break
+        extractor.extract_dependencies(ast_tree, graph, module_node_id)
         
     # エクスポート
     exporter = GraphExporter(graph)
@@ -98,7 +112,8 @@ def parse_code(
     source_code: str,
     filename: str = "<string>",
     output_format: str = "dict",
-    include_metadata: bool = True
+    include_metadata: bool = True,
+    extract_dependencies: bool = False
 ) -> Union[Dict[str, Any], str, GraphStructure]:
     """文字列として提供されたPythonコードを解析する。
     
@@ -107,6 +122,7 @@ def parse_code(
         filename: 仮想ファイル名（エラー表示用）
         output_format: 出力形式 ("dict", "json", "graph")
         include_metadata: メタデータを含めるか
+        extract_dependencies: 依存関係を抽出するか
         
     Returns:
         指定された形式でのグラフデータ
@@ -140,6 +156,17 @@ def parse_code(
         graph = builder.build_graph()
     except Exception as e:
         raise GraphBuildError(f"Failed to build graph: {str(e)}")
+    
+    # 依存関係抽出（オプション）
+    if extract_dependencies:
+        extractor = DependencyExtractor()
+        # モジュールノードを取得（通常は最初のノード）
+        module_node_id = None
+        for node_id, node in graph.nodes.items():
+            if node.node_type == "Module":
+                module_node_id = node_id
+                break
+        extractor.extract_dependencies(ast_tree, graph, module_node_id)
         
     # エクスポート
     exporter = GraphExporter(graph)

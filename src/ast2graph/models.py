@@ -14,6 +14,9 @@ class EdgeType(Enum):
     CALLS = "CALLS"                    # Function call
     DEFINES = "DEFINES"                # Definition relationship
     REFERENCES = "REFERENCES"          # Reference relationship
+    IMPORTS = "IMPORTS"                # Import relationship
+    USES = "USES"                      # Uses relationship (function/variable)
+    INSTANTIATES = "INSTANTIATES"      # Class instantiation relationship
 
 
 @dataclass
