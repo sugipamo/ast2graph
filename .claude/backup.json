@@ -1,12 +1,11 @@
 {
   "PreToolUse": [
-      
     {
       "matcher": "Write|Edit|MultiEdit",
       "hooks": [
         {
           "type": "command",
-          "command": ".venv/bin/src-check"
+          "command": "echo '自動メッセージ ソースコードを書くときはt-wadaの推奨する形式に沿ってください。'"
         }
       ]
     }
