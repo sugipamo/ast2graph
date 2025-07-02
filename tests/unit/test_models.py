@@ -35,120 +35,94 @@ class TestASTGraphNode:
         source_id = str(uuid.uuid4())
         
         node = ASTGraphNode(
-            id=node_id,
+            node_id=node_id,
             node_type="FunctionDef",
-            value="test_function",
-            lineno=10,
-            col_offset=4,
-            end_lineno=15,
-            end_col_offset=0,
-            source_id=source_id,
+            label="test_function",
+            ast_node_info={"source_id": source_id},
+            source_location=(10, 4, 15, 0),
             metadata={"docstring": "Test function"}
         )
         
-        assert node.id == node_id
+        assert node.node_id == node_id
         assert node.node_type == "FunctionDef"
-        assert node.value == "test_function"
-        assert node.lineno == 10
-        assert node.col_offset == 4
-        assert node.end_lineno == 15
-        assert node.end_col_offset == 0
-        assert node.source_id == source_id
+        assert node.label == "test_function"
+        assert node.source_location == (10, 4, 15, 0)
+        assert node.ast_node_info == {"source_id": source_id}
         assert node.metadata == {"docstring": "Test function"}
     
     def test_create_node_with_minimal_fields(self):
         """Test creating a node with minimal required fields."""
-        source_id = str(uuid.uuid4())
+        node_id = str(uuid.uuid4())
         
         node = ASTGraphNode(
-            id="",  # Will be auto-generated
+            node_id=node_id,
             node_type="Module",
-            source_id=source_id
+            label="Module",
+            ast_node_info={}
         )
         
-        assert node.id  # Should have auto-generated UUID
+        assert node.node_id == node_id
         assert node.node_type == "Module"
-        assert node.value is None
-        assert node.lineno == 0
-        assert node.col_offset == 0
-        assert node.end_lineno is None
-        assert node.end_col_offset is None
-        assert node.source_id == source_id
+        assert node.label == "Module"
+        assert node.source_location is None
+        assert node.ast_node_info == {}
         assert node.metadata == {}
     
-    def test_auto_generate_uuid(self):
-        """Test that UUID is auto-generated when not provided."""
-        node = ASTGraphNode(
-            id="",
-            node_type="Module",
-            source_id=str(uuid.uuid4())
-        )
-        
-        # Verify it's a valid UUID
-        uuid.UUID(node.id)  # Should not raise
-    
-    def test_invalid_uuid_format(self):
-        """Test that invalid UUID format raises ValueError."""
-        with pytest.raises(ValueError, match="Invalid UUID format"):
+    def test_empty_node_id(self):
+        """Test that empty node_id raises ValueError."""
+        with pytest.raises(ValueError, match="node_id cannot be empty"):
             ASTGraphNode(
-                id="not-a-uuid",
+                node_id="",
                 node_type="Module",
-                source_id=str(uuid.uuid4())
+                label="Module",
+                ast_node_info={}
             )
     
     def test_empty_node_type(self):
         """Test that empty node_type raises ValueError."""
         with pytest.raises(ValueError, match="node_type cannot be empty"):
             ASTGraphNode(
-                id="",
+                node_id=str(uuid.uuid4()),
                 node_type="",
-                source_id=str(uuid.uuid4())
+                label="Module",
+                ast_node_info={}
             )
     
-    def test_empty_source_id(self):
-        """Test that empty source_id raises ValueError."""
-        with pytest.raises(ValueError, match="source_id cannot be empty"):
+    def test_empty_label(self):
+        """Test that empty label raises ValueError."""
+        with pytest.raises(ValueError, match="label cannot be empty"):
             ASTGraphNode(
-                id="",
+                node_id=str(uuid.uuid4()),
                 node_type="Module",
-                source_id=""
+                label="",
+                ast_node_info={}
             )
     
-    def test_negative_line_numbers(self):
-        """Test that negative line numbers raise ValueError."""
-        source_id = str(uuid.uuid4())
+    def test_node_with_source_location(self):
+        """Test node with source location tuple."""
+        node_id = str(uuid.uuid4())
         
-        with pytest.raises(ValueError, match="lineno cannot be negative"):
-            ASTGraphNode(
-                id="",
-                node_type="Module",
-                lineno=-1,
-                source_id=source_id
-            )
+        node = ASTGraphNode(
+            node_id=node_id,
+            node_type="FunctionDef",
+            label="test_func",
+            ast_node_info={},
+            source_location=(1, 0, 5, 10)
+        )
         
-        with pytest.raises(ValueError, match="col_offset cannot be negative"):
-            ASTGraphNode(
-                id="",
-                node_type="Module",
-                col_offset=-1,
-                source_id=source_id
-            )
+        assert node.source_location == (1, 0, 5, 10)
+    
+    def test_node_with_none_metadata(self):
+        """Test that None metadata is converted to empty dict."""
+        node = ASTGraphNode(
+            node_id=str(uuid.uuid4()),
+            node_type="Module",
+            label="Module",
+            ast_node_info={},
+            metadata=None
+        )
         
-        with pytest.raises(ValueError, match="end_lineno cannot be negative"):
-            ASTGraphNode(
-                id="",
-                node_type="Module",
-                end_lineno=-1,
-                source_id=source_id
-            )
-        
-        with pytest.raises(ValueError, match="end_col_offset cannot be negative"):
-            ASTGraphNode(
-                id="",
-                node_type="Module",
-                end_col_offset=-1,
-                source_id=source_id
-            )
+        assert node.metadata == {}
 
 
 class TestASTGraphEdge:
@@ -156,102 +130,111 @@ class TestASTGraphEdge:
     
     def test_create_edge_with_all_fields(self):
         """Test creating an edge with all fields specified."""
+        edge_id = str(uuid.uuid4())
         source_id = str(uuid.uuid4())
         target_id = str(uuid.uuid4())
         
         edge = ASTGraphEdge(
+            edge_id=edge_id,
             source_id=source_id,
             target_id=target_id,
             edge_type=EdgeType.CHILD,
-            properties={"index": 0},
-            order=1
+            label="child_0",
+            metadata={"index": 0}
         )
         
+        assert edge.edge_id == edge_id
         assert edge.source_id == source_id
         assert edge.target_id == target_id
         assert edge.edge_type == EdgeType.CHILD
-        assert edge.properties == {"index": 0}
-        assert edge.order == 1
+        assert edge.label == "child_0"
+        assert edge.metadata == {"index": 0}
     
     def test_create_edge_with_minimal_fields(self):
         """Test creating an edge with minimal required fields."""
+        edge_id = str(uuid.uuid4())
         source_id = str(uuid.uuid4())
         target_id = str(uuid.uuid4())
         
         edge = ASTGraphEdge(
+            edge_id=edge_id,
             source_id=source_id,
             target_id=target_id,
-            edge_type=EdgeType.DEPENDS_ON
+            edge_type=EdgeType.DEPENDS_ON,
+            label="depends_on"
         )
         
+        assert edge.edge_id == edge_id
         assert edge.source_id == source_id
         assert edge.target_id == target_id
         assert edge.edge_type == EdgeType.DEPENDS_ON
-        assert edge.properties == {}
-        assert edge.order is None
+        assert edge.label == "depends_on"
+        assert edge.metadata == {}
+    
+    def test_empty_edge_id(self):
+        """Test that empty edge_id raises ValueError."""
+        with pytest.raises(ValueError, match="edge_id cannot be empty"):
+            ASTGraphEdge(
+                edge_id="",
+                source_id=str(uuid.uuid4()),
+                target_id=str(uuid.uuid4()),
+                edge_type=EdgeType.CHILD,
+                label="child"
+            )
     
     def test_empty_source_id(self):
         """Test that empty source_id raises ValueError."""
         with pytest.raises(ValueError, match="source_id cannot be empty"):
             ASTGraphEdge(
+                edge_id=str(uuid.uuid4()),
                 source_id="",
                 target_id=str(uuid.uuid4()),
-                edge_type=EdgeType.CHILD
+                edge_type=EdgeType.CHILD,
+                label="child"
             )
     
     def test_empty_target_id(self):
         """Test that empty target_id raises ValueError."""
         with pytest.raises(ValueError, match="target_id cannot be empty"):
             ASTGraphEdge(
+                edge_id=str(uuid.uuid4()),
                 source_id=str(uuid.uuid4()),
                 target_id="",
-                edge_type=EdgeType.CHILD
-            )
-    
-    def test_invalid_source_uuid(self):
-        """Test that invalid source UUID format raises ValueError."""
-        with pytest.raises(ValueError, match="Invalid UUID format for source_id"):
-            ASTGraphEdge(
-                source_id="not-a-uuid",
-                target_id=str(uuid.uuid4()),
-                edge_type=EdgeType.CHILD
-            )
-    
-    def test_invalid_target_uuid(self):
-        """Test that invalid target UUID format raises ValueError."""
-        with pytest.raises(ValueError, match="Invalid UUID format for target_id"):
-            ASTGraphEdge(
-                source_id=str(uuid.uuid4()),
-                target_id="not-a-uuid",
-                edge_type=EdgeType.CHILD
+                edge_type=EdgeType.CHILD,
+                label="child"
             )
     
     def test_invalid_edge_type(self):
         """Test that invalid edge_type raises ValueError."""
         with pytest.raises(ValueError, match="edge_type must be an EdgeType enum"):
             ASTGraphEdge(
+                edge_id=str(uuid.uuid4()),
                 source_id=str(uuid.uuid4()),
                 target_id=str(uuid.uuid4()),
-                edge_type="INVALID"  # type: ignore
+                edge_type="INVALID",  # type: ignore
+                label="invalid"
             )
     
-    def test_negative_order_for_next_edge(self):
-        """Test that negative order for NEXT edges raises ValueError."""
-        with pytest.raises(ValueError, match="order cannot be negative for NEXT edges"):
+    def test_empty_label(self):
+        """Test that empty label raises ValueError."""
+        with pytest.raises(ValueError, match="label cannot be empty"):
             ASTGraphEdge(
+                edge_id=str(uuid.uuid4()),
                 source_id=str(uuid.uuid4()),
                 target_id=str(uuid.uuid4()),
-                edge_type=EdgeType.NEXT,
-                order=-1
+                edge_type=EdgeType.CHILD,
+                label=""
             )
     
-    def test_negative_order_allowed_for_non_next_edge(self):
-        """Test that negative order is allowed for non-NEXT edges."""
-        # Should not raise
+    def test_edge_with_none_metadata(self):
+        """Test that None metadata is converted to empty dict."""
         edge = ASTGraphEdge(
+            edge_id=str(uuid.uuid4()),
             source_id=str(uuid.uuid4()),
             target_id=str(uuid.uuid4()),
-            edge_type=EdgeType.CHILD,
-            order=-1
+            edge_type=EdgeType.NEXT,
+            label="next",
+            metadata=None
         )
-        assert edge.order == -1
+        
+        assert edge.metadata == {}

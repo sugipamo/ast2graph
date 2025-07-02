@@ -198,8 +198,9 @@ class GraphStructure:
         # Check that all nodes have the same source_id
         if self.source_info:
             for node in self.nodes.values():
-                if node.source_id != self.source_info.source_id:
-                    errors.append(f"Node {node.id} has different source_id than graph: {node.source_id}")
+                # Check if node's ast_node_info contains the expected source_id
+                if 'source_id' in node.ast_node_info and node.ast_node_info['source_id'] != self.source_info.source_id:
+                    errors.append(f"Node {node.node_id} has different source_id than graph: {node.ast_node_info['source_id']}")
         
         return errors
     

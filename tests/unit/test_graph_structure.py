@@ -144,10 +144,26 @@ class TestGraphStructure:
     
     def create_test_node(self, node_id: str = None, node_type: str = "Module", source_id: str = None) -> ASTGraphNode:
         """Helper to create a test node."""
+        generated_id = node_id or str(uuid.uuid4())
         return ASTGraphNode(
-            id=node_id or str(uuid.uuid4()),
+            node_id=generated_id,
             node_type=node_type,
-            source_id=source_id or str(uuid.uuid4())
+            label=f"{node_type}_node",
+            ast_node_info={
+                "source_id": source_id or str(uuid.uuid4()),
+                "example_field": "example_value"
+            }
+        )
+    
+    def create_test_edge(self, source_id: str, target_id: str, edge_type: EdgeType, edge_id: str = None) -> ASTGraphEdge:
+        """Helper to create a test edge."""
+        generated_id = edge_id or str(uuid.uuid4())
+        return ASTGraphEdge(
+            edge_id=generated_id,
+            source_id=source_id,
+            target_id=target_id,
+            edge_type=edge_type,
+            label=f"{edge_type.value}_edge"
         )
     
     def test_create_empty_graph(self):
@@ -169,8 +185,8 @@ class TestGraphStructure:
         graph.add_node(node2)
         
         assert len(graph.nodes) == 2
-        assert graph.nodes[node1.id] == node1
-        assert graph.nodes[node2.id] == node2
+        assert graph.nodes[node1.node_id] == node1
+        assert graph.nodes[node2.node_id] == node2
     
     def test_add_duplicate_node(self):
         """Test that adding a duplicate node raises ValueError."""
@@ -198,9 +214,9 @@ class TestGraphStructure:
         graph.add_node(node1)
         graph.add_node(node2)
         
-        edge = ASTGraphEdge(
-            source_id=node1.id,
-            target_id=node2.id,
+        edge = self.create_test_edge(
+            source_id=node1.node_id,
+            target_id=node2.node_id,
             edge_type=EdgeType.CHILD
         )
         
@@ -215,9 +231,9 @@ class TestGraphStructure:
         node = self.create_test_node()
         graph.add_node(node)
         
-        edge = ASTGraphEdge(
+        edge = self.create_test_edge(
             source_id=str(uuid.uuid4()),  # Non-existent
-            target_id=node.id,
+            target_id=node.node_id,
             edge_type=EdgeType.CHILD
         )
         
@@ -230,8 +246,8 @@ class TestGraphStructure:
         node = self.create_test_node()
         graph.add_node(node)
         
-        edge = ASTGraphEdge(
-            source_id=node.id,
+        edge = self.create_test_edge(
+            source_id=node.node_id,
             target_id=str(uuid.uuid4()),  # Non-existent
             edge_type=EdgeType.CHILD
         )
@@ -245,7 +261,7 @@ class TestGraphStructure:
         node = self.create_test_node()
         graph.add_node(node)
         
-        retrieved = graph.get_node(node.id)
+        retrieved = graph.get_node(node.node_id)
         assert retrieved == node
         
         # Non-existent node returns None
@@ -262,20 +278,20 @@ class TestGraphStructure:
         graph.add_node(node2)
         graph.add_node(node3)
         
-        edge1 = ASTGraphEdge(node1.id, node2.id, EdgeType.CHILD)
-        edge2 = ASTGraphEdge(node1.id, node3.id, EdgeType.NEXT)
-        edge3 = ASTGraphEdge(node2.id, node3.id, EdgeType.DEPENDS_ON)
+        edge1 = self.create_test_edge(node1.node_id, node2.node_id, EdgeType.CHILD)
+        edge2 = self.create_test_edge(node1.node_id, node3.node_id, EdgeType.NEXT)
+        edge3 = self.create_test_edge(node2.node_id, node3.node_id, EdgeType.DEPENDS_ON)
         
         graph.add_edge(edge1)
         graph.add_edge(edge2)
         graph.add_edge(edge3)
         
-        edges_from_node1 = graph.get_edges_from(node1.id)
+        edges_from_node1 = graph.get_edges_from(node1.node_id)
         assert len(edges_from_node1) == 2
         assert edge1 in edges_from_node1
         assert edge2 in edges_from_node1
         
-        edges_from_node2 = graph.get_edges_from(node2.id)
+        edges_from_node2 = graph.get_edges_from(node2.node_id)
         assert len(edges_from_node2) == 1
         assert edge3 in edges_from_node2
         
@@ -293,19 +309,19 @@ class TestGraphStructure:
         graph.add_node(node2)
         graph.add_node(node3)
         
-        edge1 = ASTGraphEdge(node1.id, node3.id, EdgeType.CHILD)
-        edge2 = ASTGraphEdge(node2.id, node3.id, EdgeType.NEXT)
+        edge1 = self.create_test_edge(node1.node_id, node3.node_id, EdgeType.CHILD)
+        edge2 = self.create_test_edge(node2.node_id, node3.node_id, EdgeType.NEXT)
         
         graph.add_edge(edge1)
         graph.add_edge(edge2)
         
-        edges_to_node3 = graph.get_edges_to(node3.id)
+        edges_to_node3 = graph.get_edges_to(node3.node_id)
         assert len(edges_to_node3) == 2
         assert edge1 in edges_to_node3
         assert edge2 in edges_to_node3
         
         # Node with no incoming edges
-        assert graph.get_edges_to(node1.id) == []
+        assert graph.get_edges_to(node1.node_id) == []
     
     def test_get_edges_of_type(self):
         """Test getting edges of a specific type."""
@@ -318,9 +334,9 @@ class TestGraphStructure:
         graph.add_node(node2)
         graph.add_node(node3)
         
-        edge1 = ASTGraphEdge(node1.id, node2.id, EdgeType.CHILD)
-        edge2 = ASTGraphEdge(node2.id, node3.id, EdgeType.CHILD)
-        edge3 = ASTGraphEdge(node1.id, node3.id, EdgeType.DEPENDS_ON)
+        edge1 = self.create_test_edge(node1.node_id, node2.node_id, EdgeType.CHILD)
+        edge2 = self.create_test_edge(node2.node_id, node3.node_id, EdgeType.CHILD)
+        edge3 = self.create_test_edge(node1.node_id, node3.node_id, EdgeType.DEPENDS_ON)
         
         graph.add_edge(edge1)
         graph.add_edge(edge2)
@@ -348,11 +364,11 @@ class TestGraphStructure:
         graph.add_node(child2)
         graph.add_node(non_child)
         
-        graph.add_edge(ASTGraphEdge(parent.id, child1.id, EdgeType.CHILD))
-        graph.add_edge(ASTGraphEdge(parent.id, child2.id, EdgeType.CHILD))
-        graph.add_edge(ASTGraphEdge(parent.id, non_child.id, EdgeType.DEPENDS_ON))
+        graph.add_edge(self.create_test_edge(parent.node_id, child1.node_id, EdgeType.CHILD))
+        graph.add_edge(self.create_test_edge(parent.node_id, child2.node_id, EdgeType.CHILD))
+        graph.add_edge(self.create_test_edge(parent.node_id, non_child.node_id, EdgeType.DEPENDS_ON))
         
-        children = graph.get_children(parent.id)
+        children = graph.get_children(parent.node_id)
         assert len(children) == 2
         assert child1 in children
         assert child2 in children
@@ -366,10 +382,10 @@ class TestGraphStructure:
         
         graph.add_node(parent)
         graph.add_node(child)
-        graph.add_edge(ASTGraphEdge(parent.id, child.id, EdgeType.CHILD))
+        graph.add_edge(self.create_test_edge(parent.node_id, child.node_id, EdgeType.CHILD))
         
-        assert graph.get_parent(child.id) == parent
-        assert graph.get_parent(parent.id) is None
+        assert graph.get_parent(child.node_id) == parent
+        assert graph.get_parent(parent.node_id) is None
     
     def test_validate_empty_graph(self):
         """Test validating an empty graph."""
@@ -402,7 +418,7 @@ class TestGraphStructure:
         )
         
         # Add edge without nodes
-        graph.edges.append(ASTGraphEdge(
+        graph.edges.append(self.create_test_edge(
             source_id=str(uuid.uuid4()),
             target_id=str(uuid.uuid4()),
             edge_type=EdgeType.CHILD
@@ -430,7 +446,7 @@ class TestGraphStructure:
         graph.add_node(node2)
         
         # Add the same edge twice
-        edge = ASTGraphEdge(node1.id, node2.id, EdgeType.CHILD)
+        edge = self.create_test_edge(node1.node_id, node2.node_id, EdgeType.CHILD)
         graph.add_edge(edge)
         graph.edges.append(edge)  # Bypass add_edge to create duplicate
         
@@ -456,9 +472,9 @@ class TestGraphStructure:
         graph.add_node(node2)
         graph.add_node(node3)
         
-        graph.add_edge(ASTGraphEdge(node1.id, node2.id, EdgeType.CHILD))
-        graph.add_edge(ASTGraphEdge(node2.id, node3.id, EdgeType.CHILD))
-        graph.add_edge(ASTGraphEdge(node3.id, node1.id, EdgeType.CHILD))  # Creates cycle
+        graph.add_edge(self.create_test_edge(node1.node_id, node2.node_id, EdgeType.CHILD))
+        graph.add_edge(self.create_test_edge(node2.node_id, node3.node_id, EdgeType.CHILD))
+        graph.add_edge(self.create_test_edge(node3.node_id, node1.node_id, EdgeType.CHILD))  # Creates cycle
         
         errors = graph.validate()
         assert any("Cycle detected" in e for e in errors)
@@ -504,10 +520,10 @@ class TestGraphStructure:
         graph.add_node(assign)
         
         # Add edges of different types
-        graph.add_edge(ASTGraphEdge(module.id, func1.id, EdgeType.CHILD))
-        graph.add_edge(ASTGraphEdge(module.id, func2.id, EdgeType.CHILD))
-        graph.add_edge(ASTGraphEdge(func1.id, func2.id, EdgeType.CALLS))
-        graph.add_edge(ASTGraphEdge(module.id, assign.id, EdgeType.CHILD))
+        graph.add_edge(self.create_test_edge(module.node_id, func1.node_id, EdgeType.CHILD))
+        graph.add_edge(self.create_test_edge(module.node_id, func2.node_id, EdgeType.CHILD))
+        graph.add_edge(self.create_test_edge(func1.node_id, func2.node_id, EdgeType.CALLS))
+        graph.add_edge(self.create_test_edge(module.node_id, assign.node_id, EdgeType.CHILD))
         
         stats = graph.get_statistics()
         
