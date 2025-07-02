@@ -99,10 +99,10 @@ class GraphStructure:
         if not isinstance(node, ASTGraphNode):
             raise ValueError(f"Expected ASTGraphNode, got {type(node)}")
         
-        if node.id in self.nodes:
-            raise ValueError(f"Node with id {node.id} already exists")
+        if node.node_id in self.nodes:
+            raise ValueError(f"Node with id {node.node_id} already exists")
         
-        self.nodes[node.id] = node
+        self.nodes[node.node_id] = node
     
     def add_edge(self, edge: ASTGraphEdge) -> None:
         """Add an edge to the graph."""

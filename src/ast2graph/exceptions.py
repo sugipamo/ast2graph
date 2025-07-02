@@ -160,3 +160,16 @@ class UnsupportedNodeTypeError(AST2GraphError):
         if ast_dump:
             details["ast_dump"] = ast_dump
         super().__init__(message, details)
+
+
+class ExportError(AST2GraphError):
+    """Raised when graph export operations fail."""
+    
+    def __init__(self, message: str, format: Optional[str] = None, operation: Optional[str] = None) -> None:
+        """Initialize export error with format and operation information."""
+        details = {}
+        if format is not None:
+            details["format"] = format
+        if operation is not None:
+            details["operation"] = operation
+        super().__init__(message, details)

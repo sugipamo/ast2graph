@@ -100,14 +100,36 @@ class GraphBuilder:
         # Extract position information
         lineno = getattr(ast_node, 'lineno', 0)
         col_offset = getattr(ast_node, 'col_offset', 0)
+        end_lineno = getattr(ast_node, 'end_lineno', None)
+        end_col_offset = getattr(ast_node, 'end_col_offset', None)
+        
+        # Create source location tuple
+        source_location = None
+        if lineno > 0:
+            source_location = (lineno, col_offset, end_lineno or lineno, end_col_offset or col_offset)
+        
+        # Create AST node info dictionary
+        ast_node_info = {
+            'type': node_type,
+            'lineno': lineno,
+            'col_offset': col_offset
+        }
+        
+        # Add specific attributes based on node type
+        if hasattr(ast_node, 'name'):
+            ast_node_info['name'] = ast_node.name
+        if hasattr(ast_node, 'id'):
+            ast_node_info['id'] = ast_node.id
+        if hasattr(ast_node, 'value') and isinstance(ast_node, ast.Constant):
+            ast_node_info['value'] = ast_node.value
         
         return ASTGraphNode(
-            id=node_id,
+            node_id=node_id,
             node_type=node_type,
-            value=value,
-            lineno=lineno,
-            col_offset=col_offset,
-            source_id=self.source_info.file_path
+            label=value or node_type,
+            ast_node_info=ast_node_info,
+            source_location=source_location,
+            metadata={}
         )
 
     def _extract_node_value(self, ast_node: ast.AST) -> Optional[str]:
@@ -164,11 +186,16 @@ class GraphBuilder:
             target_id: The target node ID
             edge_type: The type of edge
         """
+        # Generate deterministic edge ID based on source, target, and edge type
+        edge_id = f"edge_{source_id}_{target_id}_{edge_type.value}"
+        
         edge = ASTGraphEdge(
+            edge_id=edge_id,
             source_id=source_id,
             target_id=target_id,
             edge_type=edge_type,
-            properties={}
+            label=edge_type.value.lower(),
+            metadata={}
         )
         self.graph.add_edge(edge)
 
