@@ -2,7 +2,7 @@
 
 import ast
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from ast2graph.exceptions import GraphBuildError
 from ast2graph.graph_structure import GraphStructure, SourceInfo
@@ -99,32 +99,86 @@ class GraphBuilder:
         self._node_counter += 1
         
         # Extract position information
+        source_location = self._extract_source_location(ast_node)
+        
+        # Create AST node info dictionary
+        ast_node_info = self._create_ast_node_info(ast_node, node_type)
+        
+        return ASTGraphNode(
+            node_id=node_id,
+            node_type=node_type,
+            label=value or node_type,
+            ast_node_info=ast_node_info,
+            source_location=source_location,
+            metadata={}
+        )
+    
+    def _extract_source_location(self, ast_node: ast.AST) -> Optional[tuple]:
+        """Extract source location information from AST node.
+        
+        Args:
+            ast_node: The AST node
+            
+        Returns:
+            Source location tuple or None
+        """
         lineno = getattr(ast_node, 'lineno', 0)
         col_offset = getattr(ast_node, 'col_offset', 0)
         end_lineno = getattr(ast_node, 'end_lineno', None)
         end_col_offset = getattr(ast_node, 'end_col_offset', None)
         
-        # Create source location tuple
-        source_location = None
         if lineno > 0:
-            source_location = (lineno, col_offset, end_lineno or lineno, end_col_offset or col_offset)
+            return (lineno, col_offset, end_lineno or lineno, end_col_offset or col_offset)
+        return None
+    
+    def _create_ast_node_info(self, ast_node: ast.AST, node_type: str) -> Dict[str, Any]:
+        """Create AST node info dictionary.
         
-        # Create AST node info dictionary
+        Args:
+            ast_node: The AST node
+            node_type: The node type string
+            
+        Returns:
+            AST node info dictionary
+        """
+        # Basic info
         ast_node_info = {
             'type': node_type,
-            'lineno': lineno,
-            'col_offset': col_offset
+            'lineno': getattr(ast_node, 'lineno', 0),
+            'col_offset': getattr(ast_node, 'col_offset', 0)
         }
         
-        # Add specific attributes based on node type
+        # Add basic attributes
+        self._add_basic_attributes(ast_node, ast_node_info)
+        
+        # Add type-specific attributes
+        self._add_import_attributes(ast_node, ast_node_info)
+        self._add_assignment_attributes(ast_node, ast_node_info)
+        self._add_class_attributes(ast_node, ast_node_info)
+        
+        return ast_node_info
+    
+    def _add_basic_attributes(self, ast_node: ast.AST, ast_node_info: Dict[str, Any]) -> None:
+        """Add basic attributes to AST node info.
+        
+        Args:
+            ast_node: The AST node
+            ast_node_info: The node info dictionary to update
+        """
         if hasattr(ast_node, 'name'):
             ast_node_info['name'] = ast_node.name
         if hasattr(ast_node, 'id'):
             ast_node_info['id'] = ast_node.id
         if hasattr(ast_node, 'value') and isinstance(ast_node, ast.Constant):
             ast_node_info['value'] = ast_node.value
+    
+    def _add_import_attributes(self, ast_node: ast.AST, ast_node_info: Dict[str, Any]) -> None:
+        """Add import-specific attributes to AST node info.
         
-        # Add import-specific attributes
+        Args:
+            ast_node: The AST node
+            ast_node_info: The node info dictionary to update
+        """
         if isinstance(ast_node, ast.ImportFrom):
             if ast_node.module:
                 ast_node_info['module'] = ast_node.module
@@ -133,19 +187,16 @@ class GraphBuilder:
             ast_node_info['name'] = ast_node.name
             if ast_node.asname:
                 ast_node_info['asname'] = ast_node.asname
+    
+    def _add_assignment_attributes(self, ast_node: ast.AST, ast_node_info: Dict[str, Any]) -> None:
+        """Add assignment-specific attributes to AST node info.
         
-        # Add assignment-specific attributes
+        Args:
+            ast_node: The AST node
+            ast_node_info: The node info dictionary to update
+        """
         if isinstance(ast_node, ast.Assign):
-            # Extract target names
-            targets = []
-            for target in ast_node.targets:
-                if isinstance(target, ast.Name):
-                    targets.append(target.id)
-                elif isinstance(target, ast.Tuple) or isinstance(target, ast.List):
-                    # Handle tuple/list unpacking
-                    for elt in target.elts:
-                        if isinstance(elt, ast.Name):
-                            targets.append(elt.id)
+            targets = self._extract_assignment_targets(ast_node)
             if targets:
                 ast_node_info['targets'] = targets
                 # For single target, also set name for compatibility
@@ -156,28 +207,56 @@ class GraphBuilder:
             if hasattr(ast_node, 'target') and isinstance(ast_node.target, ast.Name):
                 ast_node_info['target'] = ast_node.target.id
                 ast_node_info['name'] = ast_node.target.id
+    
+    def _extract_assignment_targets(self, assign_node: ast.Assign) -> list:
+        """Extract target names from assignment node.
         
-        # Add class-specific attributes
+        Args:
+            assign_node: The assignment node
+            
+        Returns:
+            List of target names
+        """
+        targets = []
+        for target in assign_node.targets:
+            if isinstance(target, ast.Name):
+                targets.append(target.id)
+            elif isinstance(target, (ast.Tuple, ast.List)):
+                # Handle tuple/list unpacking
+                for elt in target.elts:
+                    if isinstance(elt, ast.Name):
+                        targets.append(elt.id)
+        return targets
+    
+    def _add_class_attributes(self, ast_node: ast.AST, ast_node_info: Dict[str, Any]) -> None:
+        """Add class-specific attributes to AST node info.
+        
+        Args:
+            ast_node: The AST node
+            ast_node_info: The node info dictionary to update
+        """
         if isinstance(ast_node, ast.ClassDef):
-            # Extract base class names
-            bases = []
-            for base in ast_node.bases:
-                if isinstance(base, ast.Name):
-                    bases.append(base.id)
-                elif isinstance(base, ast.Attribute):
-                    # Handle cases like ABC.abstractmethod
-                    bases.append(f"{self._get_full_attribute_name(base)}")
+            bases = self._extract_class_bases(ast_node)
             if bases:
                 ast_node_info['bases'] = bases
+    
+    def _extract_class_bases(self, class_node: ast.ClassDef) -> list:
+        """Extract base class names from class definition.
         
-        return ASTGraphNode(
-            node_id=node_id,
-            node_type=node_type,
-            label=value or node_type,
-            ast_node_info=ast_node_info,
-            source_location=source_location,
-            metadata={}
-        )
+        Args:
+            class_node: The class definition node
+            
+        Returns:
+            List of base class names
+        """
+        bases = []
+        for base in class_node.bases:
+            if isinstance(base, ast.Name):
+                bases.append(base.id)
+            elif isinstance(base, ast.Attribute):
+                # Handle cases like ABC.abstractmethod
+                bases.append(self._get_full_attribute_name(base))
+        return bases
 
     def _get_full_attribute_name(self, node: ast.Attribute) -> str:
         """Get the full attribute name including the object.
