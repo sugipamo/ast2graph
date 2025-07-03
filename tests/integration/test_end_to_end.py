@@ -199,7 +199,7 @@ if __name__ == "__main__":
 ''')
 
         # Act
-        results = parse_directory(str(project_dir))
+        results = parse_directory(str(project_dir), include_dependencies=True)
 
         # Assert
         assert isinstance(results, dict)
@@ -290,9 +290,10 @@ class Class_{i}:
         total_nodes = 0
         total_edges = 0
         
-        for file_path, result in parse_files_stream(file_paths):
+        for result_dict in parse_files_stream(file_paths):
             results_count += 1
-            if result is not None:
+            if "graph" in result_dict:
+                result = result_dict["graph"]
                 total_nodes += result["metadata"]["total_nodes"]
                 total_edges += result["metadata"]["total_edges"]
 
@@ -316,8 +317,9 @@ class Class_{i}:
 
         # Act - ストリーミング処理（結果を保持しない）
         processed = 0
-        for file_path, result in parse_files_stream(file_paths):
-            if result is not None:
+        for result_dict in parse_files_stream(file_paths):
+            if "graph" in result_dict:
+                result = result_dict["graph"]
                 processed += 1
                 # 結果をすぐに破棄（メモリ効率的）
                 assert "nodes" in result
@@ -347,17 +349,17 @@ class Class_{i}:
             file_paths.append(str(file_path))
 
         # Act
-        results = list(parse_files_stream(file_paths, skip_errors=True))
+        results = list(parse_files_stream(file_paths))
 
         # Assert
         assert len(results) == 5  # 全ファイル分の結果
         
         # 正常なファイルは処理されている
-        valid_results = [r for _, r in results if r is not None]
+        valid_results = [r for r in results if "graph" in r]
         assert len(valid_results) == 3  # valid.py, valid2.py, valid3.py
         
-        # エラーファイルはNone
-        error_results = [r for _, r in results if r is None]
+        # エラーファイルはerrorキーを持つ
+        error_results = [r for r in results if "error" in r]
         assert len(error_results) == 2  # syntax_error.py, encoding_error.py
 
 
@@ -439,7 +441,7 @@ if __name__ == "__main__":
         # 3. 特定ファイルのコード解析
         with open(project / "main.py") as f:
             main_code = f.read()
-        main_result = parse_code(main_code, source_file="main.py")
+        main_result = parse_code(main_code, filename="main.py", include_dependencies=True)
 
         # Assert
         # config.pyの検証

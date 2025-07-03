@@ -124,6 +124,52 @@ class GraphBuilder:
         if hasattr(ast_node, 'value') and isinstance(ast_node, ast.Constant):
             ast_node_info['value'] = ast_node.value
         
+        # Add import-specific attributes
+        if isinstance(ast_node, ast.ImportFrom):
+            if ast_node.module:
+                ast_node_info['module'] = ast_node.module
+            ast_node_info['level'] = ast_node.level
+        elif isinstance(ast_node, ast.alias):
+            ast_node_info['name'] = ast_node.name
+            if ast_node.asname:
+                ast_node_info['asname'] = ast_node.asname
+        
+        # Add assignment-specific attributes
+        if isinstance(ast_node, ast.Assign):
+            # Extract target names
+            targets = []
+            for target in ast_node.targets:
+                if isinstance(target, ast.Name):
+                    targets.append(target.id)
+                elif isinstance(target, ast.Tuple) or isinstance(target, ast.List):
+                    # Handle tuple/list unpacking
+                    for elt in target.elts:
+                        if isinstance(elt, ast.Name):
+                            targets.append(elt.id)
+            if targets:
+                ast_node_info['targets'] = targets
+                # For single target, also set name for compatibility
+                if len(targets) == 1:
+                    ast_node_info['name'] = targets[0]
+        elif isinstance(ast_node, (ast.AugAssign, ast.AnnAssign)):
+            # For augmented/annotated assignments
+            if hasattr(ast_node, 'target') and isinstance(ast_node.target, ast.Name):
+                ast_node_info['target'] = ast_node.target.id
+                ast_node_info['name'] = ast_node.target.id
+        
+        # Add class-specific attributes
+        if isinstance(ast_node, ast.ClassDef):
+            # Extract base class names
+            bases = []
+            for base in ast_node.bases:
+                if isinstance(base, ast.Name):
+                    bases.append(base.id)
+                elif isinstance(base, ast.Attribute):
+                    # Handle cases like ABC.abstractmethod
+                    bases.append(f"{self._get_full_attribute_name(base)}")
+            if bases:
+                ast_node_info['bases'] = bases
+        
         return ASTGraphNode(
             node_id=node_id,
             node_type=node_type,
@@ -133,6 +179,23 @@ class GraphBuilder:
             metadata={}
         )
 
+    def _get_full_attribute_name(self, node: ast.Attribute) -> str:
+        """Get the full attribute name including the object.
+        
+        Args:
+            node: The attribute node
+            
+        Returns:
+            The full attribute name (e.g., "module.attr")
+        """
+        parts = []
+        while isinstance(node, ast.Attribute):
+            parts.append(node.attr)
+            node = node.value
+        if isinstance(node, ast.Name):
+            parts.append(node.id)
+        return '.'.join(reversed(parts))
+    
     def _extract_node_value(self, ast_node: ast.AST) -> Optional[str]:
         """Extract the value from an AST node.
         

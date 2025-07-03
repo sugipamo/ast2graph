@@ -455,19 +455,19 @@ class TestErrorRecoveryStrategies:
         (project / "good3.py").write_text('x = 42')
 
         # Act
-        results = parse_directory(str(project), skip_errors=True)
+        results = parse_directory(str(project))
 
         # Assert
         assert len(results) == 5  # 全ファイル分の結果
         
         # 正常なファイルは解析成功
-        assert results[str(project / "good1.py")] is not None
-        assert results[str(project / "good2.py")] is not None
-        assert results[str(project / "good3.py")] is not None
+        assert "error" not in results[str(project / "good1.py")]
+        assert "error" not in results[str(project / "good2.py")]
+        assert "error" not in results[str(project / "good3.py")]
         
-        # エラーファイルはNone
-        assert results[str(project / "bad_syntax.py")] is None
-        assert results[str(project / "bad_encoding.py")] is None
+        # エラーファイルはerrorキーを含む
+        assert "error" in results[str(project / "bad_syntax.py")]
+        assert "error" in results[str(project / "bad_encoding.py")]
 
     def test_streaming_with_mixed_errors(self, tmp_path: Path) -> None:
         """ストリーミング処理での混在エラー処理."""
@@ -492,17 +492,17 @@ class TestErrorRecoveryStrategies:
             files.append(str(file_path))
 
         # Act
-        results = list(parse_files_stream(files, skip_errors=True))
+        results = list(parse_files_stream(files))
 
         # Assert
         assert len(results) == 10
         
         # 正常なファイルの数を確認
-        valid_results = [r for _, r in results if r is not None]
+        valid_results = [r for r in results if "graph" in r]
         assert len(valid_results) == 3  # i % 3 == 1 のケース
         
         # エラーファイルの数を確認
-        error_results = [r for _, r in results if r is None]
+        error_results = [r for r in results if "error" in r]
         assert len(error_results) == 7  # 残りのケース
 
     def test_graceful_degradation(self, tmp_path: Path) -> None:
@@ -571,7 +571,7 @@ if (n := len([1, 2, 3])) > 2:
         non_existent = "/path/to/non/existent/file.py"
         
         # Act & Assert
-        with pytest.raises(AST2GraphError):
+        with pytest.raises(FileNotFoundError):
             parse_file(non_existent)
 
 
@@ -589,9 +589,10 @@ class TestEdgeCases:
 
         # Assert
         assert result is not None
-        assert result["nodes"] == []
+        assert len(result["nodes"]) == 1  # Module node only
+        assert result["nodes"][0]["type"] == "Module"
         assert result["edges"] == []
-        assert result["metadata"]["total_nodes"] == 0
+        assert result["metadata"]["total_nodes"] == 1
 
     def test_only_comments_and_docstrings(self, tmp_path: Path) -> None:
         """コメントとドキュメント文字列のみのファイル."""

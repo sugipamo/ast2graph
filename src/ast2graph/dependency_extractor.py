@@ -92,6 +92,17 @@ class DependencyExtractor(ast.NodeVisitor):
                 name = node.ast_node_info.get("name")
                 if name:
                     self.name_to_node_id[name] = node_id
+                    
+        # Also map imported names to their import nodes
+        for node_id, node in self.graph.nodes.items():
+            if node.node_type == "alias":
+                # This is an imported name
+                name = node.ast_node_info.get("name")
+                asname = node.ast_node_info.get("asname")
+                # Use the alias if provided, otherwise use the original name
+                import_name = asname if asname else name
+                if import_name:
+                    self.name_to_node_id[import_name] = node_id
     
     def _add_import_edges(self) -> None:
         """Add import edges to the graph."""
@@ -100,29 +111,33 @@ class DependencyExtractor(ast.NodeVisitor):
             
         for import_name, import_info in self.imports.items():
             # Create a node for the imported module if it doesn't exist
-            import_node_id = f"import_{import_info.module_name}_{id(import_info)}"
+            # Use import_name as part of the ID for determinism
+            # Include the actual imported name to make ID unique
+            import_node_id = f"import_{import_name}_{import_info.module_name or import_name}_{import_info.level}"
             
             from .models import ASTGraphNode, ASTGraphEdge
             
-            # Create node for imported module
-            # For relative imports with no module name, use the import name
-            label = import_info.module_name or import_name or f"relative_import_level_{import_info.level}"
-            
-            import_node = ASTGraphNode(
-                node_id=import_node_id,
-                node_type="ImportedModule",
-                label=label,
-                ast_node_info={
-                    "module_name": import_info.module_name,
-                    "alias": import_info.alias,
-                    "is_relative": import_info.is_relative,
-                    "level": import_info.level,
-                    "imported_names": import_info.imported_names
-                }
-            )
-            
-            # Add node to graph
-            self.graph.add_node(import_node)
+            # Check if node already exists
+            if import_node_id not in self.graph.nodes:
+                # Create node for imported module
+                # For relative imports with no module name, use the import name
+                label = import_info.module_name or import_name or f"relative_import_level_{import_info.level}"
+                
+                import_node = ASTGraphNode(
+                    node_id=import_node_id,
+                    node_type="ImportedModule",
+                    label=label,
+                    ast_node_info={
+                        "module_name": import_info.module_name,
+                        "alias": import_info.alias,
+                        "is_relative": import_info.is_relative,
+                        "level": import_info.level,
+                        "imported_names": import_info.imported_names
+                    }
+                )
+                
+                # Add node to graph
+                self.graph.add_node(import_node)
             
             # Create IMPORTS edge
             edge = ASTGraphEdge(
@@ -180,18 +195,20 @@ class DependencyExtractor(ast.NodeVisitor):
                 
                 # If target not found and it's an external reference (e.g., os.path.join)
                 if not target_node_id and "." in ref.name:
-                    # Create a node for external reference
-                    target_node_id = f"external_{ref.name}_{id(ref)}"
-                    external_node = ASTGraphNode(
-                        node_id=target_node_id,
-                        node_type="ExternalReference",
-                        label=ref.name,
-                        ast_node_info={
-                            "name": ref.name,
-                            "reference_type": ref.reference_type.value
-                        }
-                    )
-                    self.graph.add_node(external_node)
+                    # Create a node for external reference with deterministic ID
+                    target_node_id = f"external_{ref.name}_{ref.line}_{ref.column}"
+                    # Check if external node already exists
+                    if target_node_id not in self.graph.nodes:
+                        external_node = ASTGraphNode(
+                            node_id=target_node_id,
+                            node_type="ExternalReference",
+                            label=ref.name,
+                            ast_node_info={
+                                "name": ref.name,
+                                "reference_type": ref.reference_type.value
+                            }
+                        )
+                        self.graph.add_node(external_node)
                 
                 if not target_node_id:
                     continue
@@ -204,9 +221,9 @@ class DependencyExtractor(ast.NodeVisitor):
                 else:
                     edge_type = EdgeType.USES
                 
-                # Create edge
+                # Create edge with deterministic ID
                 edge = ASTGraphEdge(
-                    edge_id=f"ref_{source_node_id}_to_{target_node_id}_{id(ref)}",
+                    edge_id=f"ref_{source_node_id}_to_{target_node_id}_{ref.line}_{ref.column}",
                     source_id=source_node_id,
                     target_id=target_node_id,
                     edge_type=edge_type,

@@ -310,8 +310,9 @@ class TestMemoryUsage:
         processed = 0
         max_nodes = 0
         
-        for file_path, result in parse_files_stream(file_paths):
-            if result is not None:
+        for result_dict in parse_files_stream(file_paths):
+            if "graph" in result_dict:
+                result = result_dict["graph"]
                 processed += 1
                 max_nodes = max(max_nodes, result["metadata"]["total_nodes"])
                 # 結果をすぐに破棄（メモリ効率的）
@@ -398,7 +399,7 @@ class MyClass:
         # Act - 同じコードを3回解析
         results = []
         for i in range(3):
-            result = parse_code(code, source_file=f"test_{i}.py")
+            result = parse_code(code, filename=f"test_{i}.py")
             results.append(result)
         
         # Assert - ノードIDの一貫性を確認
@@ -482,6 +483,19 @@ instances = [factory(t)() for t in ["A", "B", "C"]]
         hashes = []
         for i in range(10):
             result = parse_code(code)
+            # 非決定的なフィールドを除外
+            if "source_info" in result:
+                # source_idとparsed_atは非決定的
+                result["source_info"] = {
+                    k: v for k, v in result["source_info"].items()
+                    if k not in ["source_id", "parsed_at"]
+                }
+            # metadataのcreated_atとexport_idも非決定的
+            if "metadata" in result:
+                result["metadata"] = {
+                    k: v for k, v in result["metadata"].items()
+                    if k not in ["created_at", "export_id"]
+                }
             # 結果を正規化してJSON文字列化
             json_str = json.dumps(result, sort_keys=True)
             hash_value = hashlib.sha256(json_str.encode()).hexdigest()
@@ -514,9 +528,9 @@ instances = [factory(t)() for t in ["A", "B", "C"]]
         # Assert - 各ファイルの結果が順序に依存しない
         for path in file_paths1:
             # 各結果セットから同じファイルの結果を取得
-            r1 = next((r for p, r in results1 if p == path), None)
-            r2 = next((r for p, r in results2 if p == path), None)
-            r3 = next((r for p, r in results3 if p == path), None)
+            r1 = next((r["graph"] for r in results1 if r["file_path"] == path and "graph" in r), None)
+            r2 = next((r["graph"] for r in results2 if r["file_path"] == path and "graph" in r), None)
+            r3 = next((r["graph"] for r in results3 if r["file_path"] == path and "graph" in r), None)
             
             assert r1 is not None and r2 is not None and r3 is not None
             
