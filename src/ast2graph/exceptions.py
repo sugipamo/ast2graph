@@ -173,3 +173,28 @@ class ExportError(AST2GraphError):
         if operation is not None:
             details["operation"] = operation
         super().__init__(message, details)
+
+
+class BatchProcessingError(AST2GraphError):
+    """Raised when batch processing operations fail."""
+    
+    def __init__(
+        self, 
+        message: str, 
+        batch_size: Optional[int] = None, 
+        failed_count: Optional[int] = None,
+        total_count: Optional[int] = None
+    ) -> None:
+        """Initialize batch processing error with batch information."""
+        details = {}
+        if batch_size is not None:
+            details["batch_size"] = batch_size
+        if failed_count is not None:
+            details["failed_count"] = failed_count
+        if total_count is not None:
+            details["total_count"] = total_count
+        
+        if failed_count is not None and total_count is not None:
+            message += f" ({failed_count}/{total_count} files failed)"
+        
+        super().__init__(message, details)
