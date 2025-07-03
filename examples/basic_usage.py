@@ -11,7 +11,7 @@ def example_parse_file():
     print("=== Parse Single File Example ===")
     
     # Parse this script itself
-    graph = parse_file(__file__)
+    graph = parse_file(__file__, output_format="graph")
     
     print(f"File: {__file__}")
     print(f"Total nodes: {len(graph.nodes)}")
@@ -22,15 +22,15 @@ def example_parse_file():
     for i, (node_id, node) in enumerate(graph.nodes.items()):
         if i >= 5:
             break
-        print(f"  - {node.label} (type: {node.ast_type})")
+        print(f"  - {node.label} (type: {node.node_type})")
     
     # Show edge type distribution
     edge_types = {}
-    for edge in graph.edges.values():
+    for edge in graph.edges:
         edge_types[edge.edge_type] = edge_types.get(edge.edge_type, 0) + 1
     
     print("\nEdge type distribution:")
-    for edge_type, count in sorted(edge_types.items()):
+    for edge_type, count in sorted(edge_types.items(), key=lambda x: str(x[0])):
         print(f"  - {edge_type}: {count}")
 
 
@@ -51,7 +51,7 @@ result = calc.add(5, 3)
 print(result)
 """
     
-    graph = parse_code(code, filename="calculator.py")
+    graph = parse_code(code, filename="calculator.py", output_format="graph")
     
     print(f"Code length: {len(code)} characters")
     print(f"Total nodes: {len(graph.nodes)}")
@@ -60,7 +60,7 @@ print(result)
     # Find all function definitions
     functions = [
         node for node in graph.nodes.values()
-        if node.ast_type == "FunctionDef"
+        if node.node_type == "FunctionDef"
     ]
     
     print(f"\nFunctions found: {len(functions)}")
@@ -86,10 +86,10 @@ def read_config(config_path):
 """
     
     # Parse without dependencies
-    graph_no_deps = parse_code(code, include_dependencies=False)
+    graph_no_deps = parse_code(code, include_dependencies=False, output_format="graph")
     
     # Parse with dependencies
-    graph_with_deps = parse_code(code, include_dependencies=True)
+    graph_with_deps = parse_code(code, include_dependencies=True, output_format="graph")
     
     print("Without dependencies:")
     print(f"  Nodes: {len(graph_no_deps.nodes)}")
@@ -101,14 +101,14 @@ def read_config(config_path):
     
     # Find import edges
     import_edges = [
-        edge for edge in graph_with_deps.edges.values()
+        edge for edge in graph_with_deps.edges
         if edge.edge_type == "IMPORTS"
     ]
     
     print(f"\nImport relationships found: {len(import_edges)}")
     for edge in import_edges:
-        source = graph_with_deps.nodes[edge.source]
-        target = graph_with_deps.nodes[edge.target]
+        source = graph_with_deps.nodes[edge.source_id]
+        target = graph_with_deps.nodes[edge.target_id]
         print(f"  - {source.label} imports {target.label}")
 
 
@@ -126,7 +126,7 @@ def parent_function():
     return result
 """
     
-    graph = parse_code(code)
+    graph = parse_code(code, output_format="graph")
     
     # Find the parent function
     parent_func = next(
@@ -137,10 +137,10 @@ def parent_function():
     print(f"Found function: {parent_func.label}")
     
     # Get all children of the parent function
-    children = graph.get_children(parent_func.id)
+    children = graph.get_children(parent_func.node_id)
     print(f"\nChildren of {parent_func.label}:")
     for child in children:
-        print(f"  - {child.label} (type: {child.ast_type})")
+        print(f"  - {child.label} (type: {child.node_type})")
     
     # Find nested function and get its parent
     nested_func = next(
@@ -148,10 +148,10 @@ def parent_function():
         if node.label == "nested_function"
     )
     
-    parents = graph.get_parents(nested_func.id)
-    print(f"\nParents of {nested_func.label}:")
-    for parent in parents:
-        print(f"  - {parent.label} (type: {parent.ast_type})")
+    parent = graph.get_parent(nested_func.node_id)
+    print(f"\nParent of {nested_func.label}:")
+    if parent:
+        print(f"  - {parent.label} (type: {parent.node_type})")
 
 
 def example_export_graph():
@@ -165,22 +165,24 @@ def fibonacci(n):
     return fibonacci(n-1) + fibonacci(n-2)
 """
     
-    graph = parse_code(code, include_dependencies=True)
+    graph = parse_code(code, include_dependencies=True, output_format="graph")
     
-    # Export to dictionary
-    graph_dict = graph.to_dict()
+    # Export to dictionary using GraphExporter
+    from ast2graph.graph_exporter import GraphExporter
+    exporter = GraphExporter(graph)
+    graph_dict = exporter.export_to_dict()
     print(f"Exported to dict with {len(graph_dict['nodes'])} nodes")
     
     # Export to JSON string
-    json_str = graph.to_json(indent=2)
+    json_str = exporter.export_to_json(indent=2)
     print(f"\nJSON export preview (first 200 chars):")
     print(json_str[:200] + "...")
     
     # Validate graph integrity
-    validation = graph.validate()
-    print(f"\nGraph validation: {'✓ Valid' if validation.is_valid else '✗ Invalid'}")
-    if not validation.is_valid:
-        for error in validation.errors:
+    errors = graph.validate()
+    print(f"\nGraph validation: {'✓ Valid' if len(errors) == 0 else '✗ Invalid'}")
+    if errors:
+        for error in errors:
             print(f"  - {error}")
 
 
