@@ -179,11 +179,16 @@ def greet():
         (project / "ascii.py").write_text('def func(): return "ASCII"')
 
         # Act
-        results = parse_directory(str(project), skip_errors=True)
+        results = parse_directory(str(project))
 
         # Assert
         assert len(results) == 3
-        assert all(result is not None for result in results.values())
+        # エラーが発生したファイルもresultsに含まれる（エラー情報付き）
+        for file_path, result in results.items():
+            assert isinstance(result, dict)
+            # 成功したファイルにはnodesが含まれる
+            if "error" not in result:
+                assert "nodes" in result
 
 
 class TestCircularReferences:

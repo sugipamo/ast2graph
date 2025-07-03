@@ -142,7 +142,7 @@ class DependencyExtractor(ast.NodeVisitor):
         if not self.graph:
             return
             
-        from .models import ASTGraphEdge
+        from .models import ASTGraphEdge, ASTGraphNode
         
         # Group references by their containing function/class
         references_by_container: Dict[str, List[ReferenceInfo]] = {}
@@ -157,17 +157,42 @@ class DependencyExtractor(ast.NodeVisitor):
                     if container_name not in references_by_container:
                         references_by_container[container_name] = []
                     references_by_container[container_name].append(ref)
+            else:
+                # Module level references
+                if "module" not in references_by_container:
+                    references_by_container["module"] = []
+                references_by_container["module"].append(ref)
         
         # Create edges for references
         for container_name, refs in references_by_container.items():
             # Find the source node (the function/class containing the reference)
-            source_node_id = self.name_to_node_id.get(container_name)
+            if container_name == "module":
+                source_node_id = self.module_node_id
+            else:
+                source_node_id = self.name_to_node_id.get(container_name)
+            
             if not source_node_id:
                 continue
                 
             for ref in refs:
                 # Try to resolve the target node
                 target_node_id = self.name_to_node_id.get(ref.name)
+                
+                # If target not found and it's an external reference (e.g., os.path.join)
+                if not target_node_id and "." in ref.name:
+                    # Create a node for external reference
+                    target_node_id = f"external_{ref.name}_{id(ref)}"
+                    external_node = ASTGraphNode(
+                        node_id=target_node_id,
+                        node_type="ExternalReference",
+                        label=ref.name,
+                        ast_node_info={
+                            "name": ref.name,
+                            "reference_type": ref.reference_type.value
+                        }
+                    )
+                    self.graph.add_node(external_node)
+                
                 if not target_node_id:
                     continue
                 

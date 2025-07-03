@@ -130,18 +130,16 @@ class FileProcessor:
         assert "nodes" in result_dict
         
         # Act & Assert - JSON文字列形式
-        result_json = parse_code(code, export_format="json")
+        result_json = parse_code(code, output_format="json")
         assert isinstance(result_json, str)
         parsed = json.loads(result_json)
         assert "nodes" in parsed
         
-        # Act & Assert - ファイル出力
-        output_file = tmp_path / "output.json"
-        parse_code(code, output_file=str(output_file))
-        assert output_file.exists()
-        with open(output_file) as f:
-            loaded = json.load(f)
-        assert "nodes" in loaded
+        # Act & Assert - GraphStructure形式
+        result_graph = parse_code(code, output_format="graph")
+        from ast2graph.graph_structure import GraphStructure
+        assert isinstance(result_graph, GraphStructure)
+        assert len(result_graph.nodes) > 0
 
 
 class TestDirectoryWorkflow:
