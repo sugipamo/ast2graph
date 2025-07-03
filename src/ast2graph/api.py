@@ -23,7 +23,8 @@ def parse_file(
     include_metadata: bool = True,
     include_source_info: bool = True,
     encoding: str = "utf-8",
-    extract_dependencies: bool = False
+    extract_dependencies: bool = False,
+    include_dependencies: bool = False
 ) -> Union[Dict[str, Any], str, GraphStructure]:
     """単一のPythonファイルを解析してグラフに変換する。
     
@@ -33,7 +34,8 @@ def parse_file(
         include_metadata: メタデータを含めるか
         include_source_info: ソース情報を含めるか
         encoding: ファイルエンコーディング
-        extract_dependencies: 依存関係を抽出するか
+        extract_dependencies: 依存関係を抽出するか（非推奨、include_dependenciesを使用）
+        include_dependencies: 依存関係を抽出するか
         
     Returns:
         指定された形式でのグラフデータ
@@ -75,7 +77,8 @@ def parse_file(
         raise GraphBuildError(f"Failed to build graph for {file_path}: {str(e)}")
     
     # 依存関係抽出（オプション）
-    if extract_dependencies:
+    # extract_dependenciesは後方互換性のため残す
+    if extract_dependencies or include_dependencies:
         extractor = DependencyExtractor()
         # モジュールノードを取得（通常は最初のノード）
         module_node_id = None
@@ -113,7 +116,8 @@ def parse_code(
     filename: str = "<string>",
     output_format: str = "dict",
     include_metadata: bool = True,
-    extract_dependencies: bool = False
+    extract_dependencies: bool = False,
+    include_dependencies: bool = False
 ) -> Union[Dict[str, Any], str, GraphStructure]:
     """文字列として提供されたPythonコードを解析する。
     
@@ -122,7 +126,8 @@ def parse_code(
         filename: 仮想ファイル名（エラー表示用）
         output_format: 出力形式 ("dict", "json", "graph")
         include_metadata: メタデータを含めるか
-        extract_dependencies: 依存関係を抽出するか
+        extract_dependencies: 依存関係を抽出するか（非推奨、include_dependenciesを使用）
+        include_dependencies: 依存関係を抽出するか
         
     Returns:
         指定された形式でのグラフデータ
@@ -158,7 +163,8 @@ def parse_code(
         raise GraphBuildError(f"Failed to build graph: {str(e)}")
     
     # 依存関係抽出（オプション）
-    if extract_dependencies:
+    # extract_dependenciesは後方互換性のため残す
+    if extract_dependencies or include_dependencies:
         extractor = DependencyExtractor()
         # モジュールノードを取得（通常は最初のノード）
         module_node_id = None
@@ -191,7 +197,9 @@ def parse_directory(
     output_dir: Optional[str] = None,
     parallel: bool = True,
     max_workers: Optional[int] = None,
-    progress_callback: Optional[Callable[[int, int], None]] = None
+    progress_callback: Optional[Callable[[int, int], None]] = None,
+    include_dependencies: bool = False,
+    recursive: bool = True
 ) -> Dict[str, Union[GraphStructure, Dict[str, Any]]]:
     """ディレクトリ内のすべてのPythonファイルを解析する。
     
@@ -202,6 +210,8 @@ def parse_directory(
         parallel: 並列処理を使用するか
         max_workers: 最大ワーカー数
         progress_callback: 進捗通知用コールバック
+        include_dependencies: 依存関係を抽出するか
+        recursive: サブディレクトリも含めて検索するか
         
     Returns:
         ファイルパスをキーとする解析結果の辞書
@@ -219,6 +229,9 @@ def parse_directory(
     for file_path in glob.glob(str(dir_path / pattern), recursive=True):
         if Path(file_path).is_file():
             file_paths.append(file_path)
+    
+    # 決定性を保証するためソート
+    file_paths.sort()
             
     # 結果の格納用辞書
     results = {}
@@ -237,7 +250,7 @@ def parse_directory(
     def process_single_file(file_path: str) -> tuple[str, Union[Dict[str, Any], Exception]]:
         """単一ファイルを処理"""
         try:
-            result = parse_file(file_path)
+            result = parse_file(file_path, include_dependencies=include_dependencies)
             
             # 出力ディレクトリが指定されている場合はファイルに保存
             if output_dir:
@@ -280,7 +293,8 @@ def parse_directory(
 
 def parse_files_stream(
     file_paths: List[str],
-    chunk_size: int = 50
+    chunk_size: int = 50,
+    include_dependencies: bool = False
 ) -> Iterator[Dict[str, Any]]:
     """大規模ファイルセットのストリーミング処理。
     
@@ -290,6 +304,7 @@ def parse_files_stream(
     Args:
         file_paths: 解析対象ファイルパスのリスト
         chunk_size: 一度に処理するファイル数（並列処理時）
+        include_dependencies: 依存関係を抽出するか
         
     Yields:
         各ファイルの処理結果を含む辞書
@@ -307,7 +322,7 @@ def parse_files_stream(
             futures = []
             
             for file_path in chunk:
-                future = executor.submit(_parse_file_for_stream, file_path)
+                future = executor.submit(_parse_file_for_stream, file_path, include_dependencies)
                 futures.append((file_path, future))
                 
             # 結果を順次yield
@@ -325,6 +340,6 @@ def parse_files_stream(
                     }
 
 
-def _parse_file_for_stream(file_path: str) -> Dict[str, Any]:
+def _parse_file_for_stream(file_path: str, include_dependencies: bool = False) -> Dict[str, Any]:
     """ストリーミング処理用の内部関数"""
-    return parse_file(file_path)
+    return parse_file(file_path, include_dependencies=include_dependencies)

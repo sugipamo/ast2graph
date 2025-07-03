@@ -22,6 +22,7 @@ class GraphBuilder:
         self.ast_tree = ast_tree
         self.source_info = source_info
         self.graph = GraphStructure()
+        self.graph.source_info = source_info  # ソース情報を設定
         self._node_counter = 0
         self._node_mapping: Dict[ast.AST, str] = {}
         # Base UUID for deterministic node ID generation

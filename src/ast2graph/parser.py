@@ -97,7 +97,18 @@ class ASTParser:
             result.encoding = encoding
             
             # Decode source code
-            source_code = source_bytes.decode(encoding)
+            try:
+                source_code = source_bytes.decode(encoding)
+            except UnicodeDecodeError:
+                # Fallback to Latin-1 if decoding fails
+                encoding = 'latin-1'
+                source_code = source_bytes.decode(encoding, errors='replace')
+                result.encoding = encoding
+                
+            # Remove BOM if present (for utf-8-sig encoding)
+            if source_code.startswith('\ufeff'):
+                source_code = source_code[1:]
+                
             result.source_code = source_code
             result.line_count = source_code.count('\n') + (1 if source_code else 0)
             result.source_hash = self._compute_hash(source_code.encode())

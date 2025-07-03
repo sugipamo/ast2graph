@@ -191,6 +191,7 @@ class GraphExporter:
             "id": node.node_id,
             "type": node.node_type,
             "label": node.label,
+            "properties": node.ast_node_info,  # テストとの互換性のため
             "ast_node_info": node.ast_node_info,
             "source_location": node.source_location,
         }
@@ -204,6 +205,7 @@ class GraphExporter:
             "id": edge.edge_id,
             "source": edge.source_id,
             "target": edge.target_id,
+            "type": edge.edge_type.value,  # テストとの互換性のため
             "edge_type": edge.edge_type.value,
             "label": edge.label,
             "metadata": edge.metadata or {}
@@ -211,13 +213,21 @@ class GraphExporter:
     
     def _export_metadata(self) -> Dict[str, Any]:
         """グラフのメタデータをエクスポート用に変換する。"""
-        return {
+        metadata = {
             "node_count": len(self.graph.nodes),
+            "total_nodes": len(self.graph.nodes),  # テストとの互換性のため
             "edge_count": len(self.graph.edges),
+            "total_edges": len(self.graph.edges),  # テストとの互換性のため
             "created_at": datetime.now().isoformat(),
             "export_id": str(uuid.uuid4()),
             "edge_types": list(set(edge.edge_type.value for edge in self.graph.edges))
         }
+        
+        # ソースファイル情報を追加（テストとの互換性のため）
+        if self.graph.source_info and self.graph.source_info.file_path:
+            metadata["source_file"] = self.graph.source_info.file_path
+            
+        return metadata
     
     def _export_source_info(self) -> Dict[str, Any]:
         """ソース情報をエクスポート用に変換する。"""
