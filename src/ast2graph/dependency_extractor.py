@@ -3,7 +3,6 @@
 import ast
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Dict, List, Optional, Any
 
 from .graph_structure import GraphStructure
 from .models import EdgeType
@@ -13,8 +12,8 @@ from .models import EdgeType
 class ImportInfo:
     """Information about an import statement."""
     module_name: str
-    alias: Optional[str] = None
-    imported_names: List[str] = field(default_factory=list)
+    alias: str | None = None
+    imported_names: list[str] = field(default_factory=list)
     is_relative: bool = False
     level: int = 0
 
@@ -39,24 +38,24 @@ class ReferenceType(Enum):
 
 class DependencyExtractor(ast.NodeVisitor):
     """Extract dependencies from Python AST."""
-    
+
     def __init__(self):
         """Initialize the dependency extractor."""
-        self.imports: Dict[str, ImportInfo] = {}
-        self.references: List[ReferenceInfo] = []
-        self.scope_stack: List[str] = ["module"]
-        self.graph: Optional[GraphStructure] = None
-        self.module_node_id: Optional[str] = None
-        self.node_map: Dict[ast.AST, str] = {}
-        
+        self.imports: dict[str, ImportInfo] = {}
+        self.references: list[ReferenceInfo] = []
+        self.scope_stack: list[str] = ["module"]
+        self.graph: GraphStructure | None = None
+        self.module_node_id: str | None = None
+        self.node_map: dict[ast.AST, str] = {}
+
     def extract_dependencies(
-        self, 
-        tree: ast.AST, 
+        self,
+        tree: ast.AST,
         graph: GraphStructure,
-        module_node_id: Optional[str] = None
+        module_node_id: str | None = None
     ) -> None:
         """Extract dependencies from AST and add them to the graph.
-        
+
         Args:
             tree: The AST to extract dependencies from
             graph: The graph structure to add dependencies to
@@ -64,35 +63,35 @@ class DependencyExtractor(ast.NodeVisitor):
         """
         self.graph = graph
         self.module_node_id = module_node_id
-        
+
         # Build a map of AST nodes to graph node IDs for reference resolution
         self._build_node_map()
-        
+
         # Visit the AST to extract dependencies
         self.visit(tree)
-        
+
         # Add import edges to the graph
         if self.module_node_id:
             self._add_import_edges()
-            
+
         # Add reference edges to the graph
         self._add_reference_edges()
-    
+
     def _build_node_map(self) -> None:
         """Build a mapping from AST nodes to graph node IDs."""
         if not self.graph:
             return
-            
+
         # Build a map of function/class names to their node IDs
-        self.name_to_node_id: Dict[str, str] = {}
-        
+        self.name_to_node_id: dict[str, str] = {}
+
         for node_id, node in self.graph.nodes.items():
             if node.node_type in ["FunctionDef", "AsyncFunctionDef", "ClassDef"]:
                 # Extract name from AST node info
                 name = node.ast_node_info.get("name")
                 if name:
                     self.name_to_node_id[name] = node_id
-                    
+
         # Also map imported names to their import nodes
         for node_id, node in self.graph.nodes.items():
             if node.node_type == "alias":
@@ -103,26 +102,26 @@ class DependencyExtractor(ast.NodeVisitor):
                 import_name = asname if asname else name
                 if import_name:
                     self.name_to_node_id[import_name] = node_id
-    
+
     def _add_import_edges(self) -> None:
         """Add import edges to the graph."""
         if not self.graph or not self.module_node_id:
             return
-            
+
         for import_name, import_info in self.imports.items():
             # Create a node for the imported module if it doesn't exist
             # Use import_name as part of the ID for determinism
             # Include the actual imported name to make ID unique
             import_node_id = f"import_{import_name}_{import_info.module_name or import_name}_{import_info.level}"
-            
-            from .models import ASTGraphNode, ASTGraphEdge
-            
+
+            from .models import ASTGraphEdge, ASTGraphNode
+
             # Check if node already exists
             if import_node_id not in self.graph.nodes:
                 # Create node for imported module
                 # For relative imports with no module name, use the import name
                 label = import_info.module_name or import_name or f"relative_import_level_{import_info.level}"
-                
+
                 import_node = ASTGraphNode(
                     node_id=import_node_id,
                     node_type="ImportedModule",
@@ -135,10 +134,10 @@ class DependencyExtractor(ast.NodeVisitor):
                         "imported_names": import_info.imported_names
                     }
                 )
-                
+
                 # Add node to graph
                 self.graph.add_node(import_node)
-            
+
             # Create IMPORTS edge
             edge = ASTGraphEdge(
                 edge_id=f"edge_{self.module_node_id}_to_{import_node_id}",
@@ -148,20 +147,20 @@ class DependencyExtractor(ast.NodeVisitor):
                 label=f"imports {import_name}",
                 metadata={"import_name": import_name}
             )
-            
+
             # Add edge to graph
             self.graph.add_edge(edge)
-    
+
     def _add_reference_edges(self) -> None:
         """Add reference edges to the graph."""
         if not self.graph:
             return
-            
+
         from .models import ASTGraphEdge, ASTGraphNode
-        
+
         # Group references by their containing function/class
-        references_by_container: Dict[str, List[ReferenceInfo]] = {}
-        
+        references_by_container: dict[str, list[ReferenceInfo]] = {}
+
         for ref in self.references:
             # Extract container name from scope
             if ref.scope != "module":
@@ -177,7 +176,7 @@ class DependencyExtractor(ast.NodeVisitor):
                 if "module" not in references_by_container:
                     references_by_container["module"] = []
                 references_by_container["module"].append(ref)
-        
+
         # Create edges for references
         for container_name, refs in references_by_container.items():
             # Find the source node (the function/class containing the reference)
@@ -185,14 +184,14 @@ class DependencyExtractor(ast.NodeVisitor):
                 source_node_id = self.module_node_id
             else:
                 source_node_id = self.name_to_node_id.get(container_name)
-            
+
             if not source_node_id:
                 continue
-                
+
             for ref in refs:
                 # Try to resolve the target node
                 target_node_id = self.name_to_node_id.get(ref.name)
-                
+
                 # If target not found and it's an external reference (e.g., os.path.join)
                 if not target_node_id and "." in ref.name:
                     # Create a node for external reference with deterministic ID
@@ -209,10 +208,10 @@ class DependencyExtractor(ast.NodeVisitor):
                             }
                         )
                         self.graph.add_node(external_node)
-                
+
                 if not target_node_id:
                     continue
-                
+
                 # Determine edge type
                 if ref.reference_type == ReferenceType.FUNCTION_CALL:
                     edge_type = EdgeType.USES
@@ -220,7 +219,7 @@ class DependencyExtractor(ast.NodeVisitor):
                     edge_type = EdgeType.INSTANTIATES
                 else:
                     edge_type = EdgeType.USES
-                
+
                 # Create edge with deterministic ID
                 edge = ASTGraphEdge(
                     edge_id=f"ref_{source_node_id}_to_{target_node_id}_{ref.line}_{ref.column}",
@@ -234,13 +233,13 @@ class DependencyExtractor(ast.NodeVisitor):
                         "column": ref.column
                     }
                 )
-                
+
                 try:
                     self.graph.add_edge(edge)
                 except ValueError:
                     # Edge might already exist or nodes might not be in graph
                     pass
-    
+
     def visit_Import(self, node: ast.Import) -> None:
         """Visit an import statement."""
         for alias in node.names:
@@ -253,13 +252,13 @@ class DependencyExtractor(ast.NodeVisitor):
                 level=0
             )
         self.generic_visit(node)
-    
+
     def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
         """Visit a from...import statement."""
         module_name = node.module or ""
         level = node.level or 0
         is_relative = level > 0
-        
+
         for alias in node.names:
             import_name = alias.asname if alias.asname else alias.name
             self.imports[import_name] = ImportInfo(
@@ -270,17 +269,17 @@ class DependencyExtractor(ast.NodeVisitor):
                 level=level
             )
         self.generic_visit(node)
-    
+
     def visit_Call(self, node: ast.Call) -> None:
         """Visit a function call."""
         # Determine if this is a function call or class instantiation
         if isinstance(node.func, ast.Name):
             name = node.func.id
             # Simple heuristic: if name starts with uppercase, it's likely a class
-            ref_type = (ReferenceType.CLASS_INSTANTIATION 
-                       if name and name[0].isupper() 
+            ref_type = (ReferenceType.CLASS_INSTANTIATION
+                       if name and name[0].isupper()
                        else ReferenceType.FUNCTION_CALL)
-            
+
             self.references.append(ReferenceInfo(
                 name=name,
                 reference_type=ref_type,
@@ -298,16 +297,16 @@ class DependencyExtractor(ast.NodeVisitor):
                 line=node.lineno,
                 column=node.col_offset
             ))
-        
+
         self.generic_visit(node)
-    
+
     def visit_Attribute(self, node: ast.Attribute) -> None:
         """Visit an attribute access."""
         # Only track attribute access if it's not part of a call
         if not isinstance(getattr(node, 'ctx', None), ast.Load):
             self.generic_visit(node)
             return
-            
+
         full_name = self._get_full_attribute_name(node)
         self.references.append(ReferenceInfo(
             name=full_name,
@@ -317,35 +316,35 @@ class DependencyExtractor(ast.NodeVisitor):
             column=node.col_offset
         ))
         self.generic_visit(node)
-    
+
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
         """Visit a function definition."""
         self.scope_stack.append(f"function:{node.name}")
         self.generic_visit(node)
         self.scope_stack.pop()
-    
+
     def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
         """Visit an async function definition."""
         self.scope_stack.append(f"function:{node.name}")
         self.generic_visit(node)
         self.scope_stack.pop()
-    
+
     def visit_ClassDef(self, node: ast.ClassDef) -> None:
         """Visit a class definition."""
         self.scope_stack.append(f"class:{node.name}")
         self.generic_visit(node)
         self.scope_stack.pop()
-    
+
     def _get_full_attribute_name(self, node: ast.Attribute) -> str:
         """Get the full name of an attribute access."""
         parts = [node.attr]
         current = node.value
-        
+
         while isinstance(current, ast.Attribute):
             parts.append(current.attr)
             current = current.value
-        
+
         if isinstance(current, ast.Name):
             parts.append(current.id)
-        
+
         return ".".join(reversed(parts))

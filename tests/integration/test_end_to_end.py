@@ -4,14 +4,9 @@
 完全なワークフローを検証する。
 """
 import json
-import tempfile
 from pathlib import Path
-from typing import Any, Dict, List
-
-import pytest
 
 from ast2graph import parse_code, parse_directory, parse_file, parse_files_stream
-from ast2graph.exceptions import AST2GraphError
 from ast2graph.models import EdgeType
 
 
@@ -30,7 +25,7 @@ class Person:
     """人物を表すクラス."""
     def __init__(self, name: str):
         self.name = name
-    
+
     def say_hello(self) -> str:
         return greet(self.name)
 '''
@@ -49,13 +44,13 @@ class Person:
         # ノードの検証
         nodes = result["nodes"]
         assert len(nodes) > 0
-        
+
         # 関数定義ノードの確認
         func_nodes = [n for n in nodes if n["type"] == "FunctionDef"]
         assert len(func_nodes) == 3  # greet, __init__, say_hello
         assert any(n["properties"]["name"] == "greet" for n in func_nodes)
         assert any(n["properties"]["name"] == "say_hello" for n in func_nodes)
-        
+
         # クラス定義ノードの確認
         class_nodes = [n for n in nodes if n["type"] == "ClassDef"]
         assert len(class_nodes) == 1
@@ -64,7 +59,7 @@ class Person:
         # エッジの検証
         edges = result["edges"]
         assert len(edges) > 0
-        
+
         # 親子関係の確認
         child_edges = [e for e in edges if e["type"] == EdgeType.CHILD.value]
         assert len(child_edges) > 0
@@ -95,7 +90,7 @@ class FileProcessor:
     """ファイル処理クラス."""
     def __init__(self, base_path: str):
         self.base_path = os.path.abspath(base_path)
-    
+
     def process(self, filename: str) -> Dict:
         path = os.path.join(self.base_path, filename)
         # ファイル処理のロジック
@@ -108,13 +103,13 @@ class FileProcessor:
         result = parse_file(str(file_path), include_dependencies=True)
 
         # Assert
-        nodes = result["nodes"]
+        result["nodes"]
         edges = result["edges"]
-        
+
         # import文の依存関係確認
         import_edges = [e for e in edges if e["type"] == EdgeType.IMPORTS.value]
         assert len(import_edges) > 0
-        
+
         # 使用関係の確認
         uses_edges = [e for e in edges if e["type"] == EdgeType.USES.value]
         assert len(uses_edges) > 0  # os.path.abspath, os.path.join等の使用
@@ -123,18 +118,18 @@ class FileProcessor:
         """様々なエクスポート形式のテスト."""
         # Arrange
         code = 'x = 1\ny = x + 2'
-        
+
         # Act & Assert - dict形式（デフォルト）
         result_dict = parse_code(code)
         assert isinstance(result_dict, dict)
         assert "nodes" in result_dict
-        
+
         # Act & Assert - JSON文字列形式
         result_json = parse_code(code, output_format="json")
         assert isinstance(result_json, str)
         parsed = json.loads(result_json)
         assert "nodes" in parsed
-        
+
         # Act & Assert - GraphStructure形式
         result_graph = parse_code(code, output_format="graph")
         from ast2graph.graph_structure import GraphStructure
@@ -150,10 +145,10 @@ class TestDirectoryWorkflow:
         # Arrange - プロジェクト構造の作成
         project_dir = tmp_path / "myproject"
         project_dir.mkdir()
-        
+
         # __init__.py
         (project_dir / "__init__.py").write_text('"""My project."""\n__version__ = "1.0.0"')
-        
+
         # models.py
         (project_dir / "models.py").write_text('''
 class User:
@@ -166,7 +161,7 @@ class Product:
         self.name = name
         self.price = price
 ''')
-        
+
         # services.py
         (project_dir / "services.py").write_text('''
 from .models import User, Product
@@ -179,7 +174,7 @@ class ProductService:
     def create_product(self, name: str, price: float) -> Product:
         return Product(name, price)
 ''')
-        
+
         # main.py
         (project_dir / "main.py").write_text('''
 from .services import UserService, ProductService
@@ -187,10 +182,10 @@ from .services import UserService, ProductService
 def main():
     user_service = UserService()
     product_service = ProductService()
-    
+
     user = user_service.create_user("Alice", "alice@example.com")
     product = product_service.create_product("Book", 29.99)
-    
+
     print(f"User: {user.name}")
     print(f"Product: {product.name} - ${product.price}")
 
@@ -204,19 +199,19 @@ if __name__ == "__main__":
         # Assert
         assert isinstance(results, dict)
         assert len(results) == 4  # 4つのファイル
-        
+
         # 各ファイルの結果を確認
         assert str(project_dir / "__init__.py") in results
         assert str(project_dir / "models.py") in results
         assert str(project_dir / "services.py") in results
         assert str(project_dir / "main.py") in results
-        
+
         # models.pyの内容確認
         models_result = results[str(project_dir / "models.py")]
         models_nodes = models_result["nodes"]
         class_nodes = [n for n in models_nodes if n["type"] == "ClassDef"]
         assert len(class_nodes) == 2  # User, Product
-        
+
         # services.pyの依存関係確認
         services_result = results[str(project_dir / "services.py")]
         services_edges = services_result["edges"]
@@ -230,7 +225,7 @@ if __name__ == "__main__":
         (project / "src" / "core").mkdir(parents=True)
         (project / "src" / "utils").mkdir(parents=True)
         (project / "tests").mkdir()
-        
+
         # ファイル作成
         (project / "src" / "__init__.py").write_text("")
         (project / "src" / "core" / "__init__.py").write_text("")
@@ -249,7 +244,7 @@ def test_engine():
 
         # Assert
         assert len(results) == 6  # 全ファイル数
-        
+
         # パスの確認
         expected_files = [
             "src/__init__.py",
@@ -289,7 +284,7 @@ class Class_{i}:
         results_count = 0
         total_nodes = 0
         total_edges = 0
-        
+
         for result_dict in parse_files_stream(file_paths):
             results_count += 1
             if "graph" in result_dict:
@@ -308,7 +303,7 @@ class Class_{i}:
         large_code = '''
 # 大きなファイルのシミュレーション
 ''' + '\n'.join([f'var_{i} = {i}' for i in range(1000)])
-        
+
         file_paths = []
         for i in range(10):
             file_path = tmp_path / f"large_{i}.py"
@@ -338,7 +333,7 @@ class Class_{i}:
             "encoding_error.py": b"\xff\xfe invalid encoding",
             "valid3.py": "z = 3"
         }
-        
+
         file_paths = []
         for name, content in files.items():
             file_path = tmp_path / name
@@ -353,11 +348,11 @@ class Class_{i}:
 
         # Assert
         assert len(results) == 5  # 全ファイル分の結果
-        
+
         # 正常なファイルは処理されている
         valid_results = [r for r in results if "graph" in r]
         assert len(valid_results) == 3  # valid.py, valid2.py, valid3.py
-        
+
         # エラーファイルはerrorキーを持つ
         error_results = [r for r in results if "error" in r]
         assert len(error_results) == 2  # syntax_error.py, encoding_error.py
@@ -371,7 +366,7 @@ class TestCompleteWorkflowIntegration:
         # Arrange - リアルなプロジェクト構造
         project = tmp_path / "real_project"
         project.mkdir()
-        
+
         # config.py
         (project / "config.py").write_text('''
 import os
@@ -382,14 +377,14 @@ class Config:
     def __init__(self):
         self.debug = os.environ.get("DEBUG", "False") == "True"
         self.database_url = os.environ.get("DATABASE_URL", "sqlite:///app.db")
-    
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "debug": self.debug,
             "database_url": self.database_url
         }
 ''')
-        
+
         # app.py
         (project / "app.py").write_text('''
 from config import Config
@@ -400,22 +395,22 @@ class Application:
     def __init__(self, config: Optional[Config] = None):
         self.config = config or Config()
         self._initialized = False
-    
+
     def initialize(self) -> None:
         """アプリケーションの初期化."""
         if self._initialized:
             return
-        
+
         # 初期化処理
         print(f"Initializing with config: {self.config.to_dict()}")
         self._initialized = True
-    
+
     def run(self) -> None:
         """アプリケーションの実行."""
         self.initialize()
         print("Application is running...")
 ''')
-        
+
         # main.py
         (project / "main.py").write_text('''
 #!/usr/bin/env python3
@@ -434,10 +429,10 @@ if __name__ == "__main__":
         # Act - 様々な方法で解析
         # 1. 個別ファイル解析
         config_result = parse_file(str(project / "config.py"), include_dependencies=True)
-        
+
         # 2. ディレクトリ全体解析
         all_results = parse_directory(str(project), include_dependencies=True)
-        
+
         # 3. 特定ファイルのコード解析
         with open(project / "main.py") as f:
             main_code = f.read()
@@ -450,7 +445,7 @@ if __name__ == "__main__":
         config_classes = [n for n in config_nodes if n["type"] == "ClassDef"]
         assert len(config_classes) == 1
         assert config_classes[0]["properties"]["name"] == "Config"
-        
+
         # ディレクトリ解析の検証
         assert len(all_results) == 3
         assert all(path in all_results for path in [
@@ -458,13 +453,13 @@ if __name__ == "__main__":
             str(project / "app.py"),
             str(project / "main.py")
         ])
-        
+
         # 依存関係の検証
         app_result = all_results[str(project / "app.py")]
         app_edges = app_result["edges"]
         import_edges = [e for e in app_edges if e["type"] == EdgeType.IMPORTS.value]
         assert any(e for e in import_edges if "Config" in str(e))
-        
+
         # main.pyの検証
         assert main_result is not None
         main_nodes = main_result["nodes"]

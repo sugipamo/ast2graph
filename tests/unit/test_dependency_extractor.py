@@ -1,8 +1,6 @@
 """Test module for dependency extraction functionality."""
 
 import ast
-from typing import List, Optional
-import pytest
 
 from ast2graph.dependency_extractor import (
     DependencyExtractor,
@@ -103,12 +101,12 @@ class TestDependencyExtractor:
         """Test extraction of simple import statement."""
         code = "import os"
         tree = ast.parse(code)
-        
+
         extractor = DependencyExtractor()
         graph = GraphStructure()
-        
+
         extractor.extract_dependencies(tree, graph)
-        
+
         assert "os" in extractor.imports
         assert extractor.imports["os"].module_name == "os"
         assert extractor.imports["os"].alias is None
@@ -118,12 +116,12 @@ class TestDependencyExtractor:
         """Test extraction of import with alias."""
         code = "import numpy as np"
         tree = ast.parse(code)
-        
+
         extractor = DependencyExtractor()
         graph = GraphStructure()
-        
+
         extractor.extract_dependencies(tree, graph)
-        
+
         assert "np" in extractor.imports
         assert extractor.imports["np"].module_name == "numpy"
         assert extractor.imports["np"].alias == "np"
@@ -132,12 +130,12 @@ class TestDependencyExtractor:
         """Test extraction of from...import statement."""
         code = "from os.path import join, exists"
         tree = ast.parse(code)
-        
+
         extractor = DependencyExtractor()
         graph = GraphStructure()
-        
+
         extractor.extract_dependencies(tree, graph)
-        
+
         assert "join" in extractor.imports
         assert "exists" in extractor.imports
         assert extractor.imports["join"].module_name == "os.path"
@@ -149,12 +147,12 @@ class TestDependencyExtractor:
         """Test extraction of relative import."""
         code = "from .models import User"
         tree = ast.parse(code)
-        
+
         extractor = DependencyExtractor()
         graph = GraphStructure()
-        
+
         extractor.extract_dependencies(tree, graph)
-        
+
         assert "User" in extractor.imports
         assert extractor.imports["User"].module_name == "models"
         assert extractor.imports["User"].is_relative is True
@@ -167,17 +165,17 @@ import os
 result = os.path.join('a', 'b')
 """
         tree = ast.parse(code)
-        
+
         extractor = DependencyExtractor()
         graph = GraphStructure()
-        
+
         extractor.extract_dependencies(tree, graph)
-        
+
         # Check that function call reference is captured
-        function_refs = [r for r in extractor.references 
+        function_refs = [r for r in extractor.references
                         if r.reference_type == ReferenceType.FUNCTION_CALL]
         assert len(function_refs) > 0
-        
+
         # Find the os.path.join reference
         join_ref = next((r for r in function_refs if "join" in r.name), None)
         assert join_ref is not None
@@ -191,14 +189,14 @@ class MyClass:
 obj = MyClass()
 """
         tree = ast.parse(code)
-        
+
         extractor = DependencyExtractor()
         graph = GraphStructure()
-        
+
         extractor.extract_dependencies(tree, graph)
-        
+
         # Check that class instantiation is captured
-        class_refs = [r for r in extractor.references 
+        class_refs = [r for r in extractor.references
                      if r.reference_type == ReferenceType.CLASS_INSTANTIATION]
         assert len(class_refs) == 1
         assert class_refs[0].name == "MyClass"
@@ -217,12 +215,12 @@ class MyClass:
         z = 2
 """
         tree = ast.parse(code)
-        
+
         extractor = DependencyExtractor()
         graph = GraphStructure()
-        
+
         extractor.extract_dependencies(tree, graph)
-        
+
         # Verify scope tracking worked correctly
         # This would be reflected in the references' scope information
 
@@ -230,12 +228,12 @@ class MyClass:
         """Test extraction of wildcard import."""
         code = "from math import *"
         tree = ast.parse(code)
-        
+
         extractor = DependencyExtractor()
         graph = GraphStructure()
-        
+
         extractor.extract_dependencies(tree, graph)
-        
+
         # Check that wildcard import is properly recorded
         assert "*" in extractor.imports
         assert extractor.imports["*"].module_name == "math"
@@ -247,10 +245,10 @@ import os
 from math import sqrt
 """
         tree = ast.parse(code)
-        
+
         extractor = DependencyExtractor()
         graph = GraphStructure()
-        
+
         # First, we need to ensure the module node exists
         from ast2graph.models import ASTGraphNode
         module_node = ASTGraphNode(
@@ -265,9 +263,9 @@ from math import sqrt
         )
         graph.add_node(module_node)
         module_node_id = module_node.node_id
-        
+
         extractor.extract_dependencies(tree, graph, module_node_id=module_node_id)
-        
+
         # Check that IMPORTS edges were created
         import_edges = graph.get_edges_of_type(EdgeType.IMPORTS)
         assert len(import_edges) >= 2  # One for os, one for math
@@ -282,18 +280,19 @@ def bar():
     foo()
 """
         tree = ast.parse(code)
-        
+
         extractor = DependencyExtractor()
         graph = GraphStructure()
-        
+
         # Build the basic graph structure first
-        from ast2graph.graph_builder import GraphBuilder
-        from ast2graph.graph_structure import SourceInfo
-        from datetime import datetime
         import hashlib
-        
+
         # Create source info
         import uuid
+        from datetime import datetime
+
+        from ast2graph.graph_builder import GraphBuilder
+        from ast2graph.graph_structure import SourceInfo
         source_info = SourceInfo(
             source_id=str(uuid.uuid4()),
             file_path="test.py",
@@ -302,13 +301,13 @@ def bar():
             line_count=6,
             size_bytes=len(code.encode())
         )
-        
+
         builder = GraphBuilder(tree, source_info)
         graph = builder.build_graph()
-        
+
         # Then extract dependencies
         extractor.extract_dependencies(tree, graph)
-        
+
         # Check that USES edges were created
         uses_edges = graph.get_edges_of_type(EdgeType.USES)
         assert len(uses_edges) >= 1  # bar uses foo
@@ -323,12 +322,12 @@ from . import utils
 import sys, json
 """
         tree = ast.parse(code)
-        
+
         extractor = DependencyExtractor()
         graph = GraphStructure()
-        
+
         extractor.extract_dependencies(tree, graph)
-        
+
         # Verify all imports were captured correctly
         assert "os.path" in extractor.imports
         assert "List" in extractor.imports

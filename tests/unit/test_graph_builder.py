@@ -3,7 +3,6 @@
 import ast
 import uuid
 from datetime import datetime
-from typing import Any
 
 import pytest
 
@@ -48,7 +47,7 @@ from typing import List
 class MyClass:
     def __init__(self):
         self.value = 42
-    
+
     def method(self, arg: str) -> str:
         result = f"Hello {arg}"
         return result
@@ -75,14 +74,14 @@ if __name__ == "__main__":
         """Test building graph from simple AST."""
         builder = GraphBuilder(simple_ast, simple_source_info)
         graph = builder.build_graph()
-        
+
         # Check that nodes were created
         assert len(graph.nodes) > 0
-        
+
         # Check Module node exists
         module_nodes = [n for n in graph.nodes.values() if n.node_type == "Module"]
         assert len(module_nodes) == 1
-        
+
         # Check FunctionDef node exists
         func_nodes = [n for n in graph.nodes.values() if n.node_type == "FunctionDef"]
         assert len(func_nodes) == 1
@@ -92,17 +91,17 @@ if __name__ == "__main__":
         """Test building graph from complex AST."""
         builder = GraphBuilder(complex_ast, simple_source_info)
         graph = builder.build_graph()
-        
+
         # Check various node types
         node_types = {node.node_type for node in graph.nodes.values()}
         expected_types = {"Module", "Import", "ImportFrom", "ClassDef", "FunctionDef"}
         assert expected_types.issubset(node_types)
-        
+
         # Check class and methods
         class_nodes = [n for n in graph.nodes.values() if n.node_type == "ClassDef"]
         assert len(class_nodes) == 1
         assert class_nodes[0].label == "MyClass"
-        
+
         # Check functions
         func_nodes = [n for n in graph.nodes.values() if n.node_type == "FunctionDef"]
         func_names = {n.label for n in func_nodes}
@@ -114,13 +113,13 @@ if __name__ == "__main__":
         """Test that node IDs are generated deterministically."""
         builder1 = GraphBuilder(simple_ast, simple_source_info)
         graph1 = builder1.build_graph()
-        
+
         builder2 = GraphBuilder(simple_ast, simple_source_info)
         graph2 = builder2.build_graph()
-        
+
         # Check that the same number of nodes are created
         assert len(graph1.nodes) == len(graph2.nodes)
-        
+
         # Check that node IDs are valid UUIDs
         node_ids = list(graph1.nodes.keys())
         for node_id in node_ids:
@@ -131,17 +130,17 @@ if __name__ == "__main__":
         """Test that edges are created correctly."""
         builder = GraphBuilder(simple_ast, simple_source_info)
         graph = builder.build_graph()
-        
+
         # Check that edges exist
         assert len(graph.edges) > 0
-        
+
         # Check Module -> FunctionDef edge
         module_node = next(n for n in graph.nodes.values() if n.node_type == "Module")
         func_node = next(n for n in graph.nodes.values() if n.node_type == "FunctionDef")
-        
+
         # Find edge from Module to FunctionDef
         module_to_func_edges = [
-            e for e in graph.edges 
+            e for e in graph.edges
             if e.source_id == module_node.node_id and e.target_id == func_node.node_id
         ]
         assert len(module_to_func_edges) == 1
@@ -153,13 +152,13 @@ if __name__ == "__main__":
         for _ in range(3):
             builder = GraphBuilder(complex_ast, simple_source_info)
             graphs.append(builder.build_graph())
-        
+
         # Check all graphs have the same number of nodes and edges
         node_counts = [len(g.nodes) for g in graphs]
         edge_counts = [len(g.edges) for g in graphs]
         assert len(set(node_counts)) == 1
         assert len(set(edge_counts)) == 1
-        
+
         # Check node types are consistent
         for i in range(1, len(graphs)):
             types1 = sorted([n.node_type for n in graphs[0].nodes.values()])
@@ -171,7 +170,7 @@ if __name__ == "__main__":
         empty_ast = ast.parse("")
         builder = GraphBuilder(empty_ast, simple_source_info)
         graph = builder.build_graph()
-        
+
         # Should have at least a Module node
         assert len(graph.nodes) >= 1
         module_nodes = [n for n in graph.nodes.values() if n.node_type == "Module"]
@@ -181,10 +180,10 @@ if __name__ == "__main__":
         """Test that AST nodes are properly mapped to graph nodes."""
         builder = GraphBuilder(simple_ast, simple_source_info)
         graph = builder.build_graph()
-        
+
         # Check that the mapping contains entries
         assert len(builder._node_mapping) > 0
-        
+
         # Check that mapped nodes exist in the graph
         for ast_node, node_id in builder._node_mapping.items():
             assert node_id in graph.nodes
@@ -194,8 +193,8 @@ if __name__ == "__main__":
     def test_source_info_propagation(self, simple_ast: ast.AST, simple_source_info: SourceInfo) -> None:
         """Test that source info is properly stored in the builder."""
         builder = GraphBuilder(simple_ast, simple_source_info)
-        graph = builder.build_graph()
-        
+        builder.build_graph()
+
         # Check that the builder has the correct source_info
         assert builder.source_info == simple_source_info
         assert builder.source_info.source_id == simple_source_info.source_id
@@ -208,7 +207,7 @@ if __name__ == "__main__":
 
 def func2():
     pass"""
-        
+
         source_info = SourceInfo(
             source_id="550e8400-e29b-41d4-a716-446655440000",
             file_path="test.py",
@@ -221,11 +220,11 @@ def func2():
         ast_tree = ast.parse(code)
         builder = GraphBuilder(ast_tree, source_info)
         graph = builder.build_graph()
-        
+
         # Find function nodes
         func_nodes = [n for n in graph.nodes.values() if n.node_type == "FunctionDef"]
         func_nodes.sort(key=lambda n: n.source_location[0] if n.source_location else 0)
-        
+
         assert len(func_nodes) == 2
         assert func_nodes[0].label == "func1"
         assert func_nodes[0].source_location[0] == 1  # start_line
@@ -240,20 +239,20 @@ def func2():
             def __init__(self):
                 # Don't call super().__init__() to avoid AST initialization
                 pass
-                
+
             def __getattr__(self, name):
                 if name == '_fields':
                     # Return empty fields to avoid infinite recursion
                     return ()
                 raise RuntimeError("Simulated AST error")
-        
+
         broken_ast = BrokenAST()
         builder = GraphBuilder(broken_ast, simple_source_info)
-        
+
         # Should handle the error gracefully
         with pytest.raises(GraphBuildError) as exc_info:
             builder.build_graph()
-        
+
         # Verify the error message
         assert "Failed to build graph" in str(exc_info.value)
 
@@ -263,7 +262,7 @@ def func2():
 import sys as system
 from typing import List, Dict
 from collections.abc import Mapping"""
-        
+
         source_info = SourceInfo(
             source_id="550e8400-e29b-41d4-a716-446655440000",
             file_path="test.py",
@@ -276,11 +275,11 @@ from collections.abc import Mapping"""
         ast_tree = ast.parse(code)
         builder = GraphBuilder(ast_tree, source_info)
         graph = builder.build_graph()
-        
+
         # Check Import nodes
         import_nodes = [n for n in graph.nodes.values() if n.node_type == "Import"]
         assert len(import_nodes) == 2
-        
+
         # Check ImportFrom nodes
         import_from_nodes = [n for n in graph.nodes.values() if n.node_type == "ImportFrom"]
         assert len(import_from_nodes) == 2
@@ -293,7 +292,7 @@ from collections.abc import Mapping"""
 class Derived(Base):
     def method(self):
         pass"""
-        
+
         source_info = SourceInfo(
             source_id="550e8400-e29b-41d4-a716-446655440000",
             file_path="test.py",
@@ -306,11 +305,11 @@ class Derived(Base):
         ast_tree = ast.parse(code)
         builder = GraphBuilder(ast_tree, source_info)
         graph = builder.build_graph()
-        
+
         # Check ClassDef nodes
         class_nodes = [n for n in graph.nodes.values() if n.node_type == "ClassDef"]
         assert len(class_nodes) == 2
-        
+
         class_names = {n.label for n in class_nodes}
         assert "Base" in class_names
         assert "Derived" in class_names
@@ -321,7 +320,7 @@ class Derived(Base):
 @staticmethod
 def decorated_func():
     pass"""
-        
+
         source_info = SourceInfo(
             source_id="550e8400-e29b-41d4-a716-446655440000",
             file_path="test.py",
@@ -334,7 +333,7 @@ def decorated_func():
         ast_tree = ast.parse(code)
         builder = GraphBuilder(ast_tree, source_info)
         graph = builder.build_graph()
-        
+
         # Check FunctionDef node exists
         func_nodes = [n for n in graph.nodes.values() if n.node_type == "FunctionDef"]
         assert len(func_nodes) == 1
@@ -344,7 +343,7 @@ def decorated_func():
         """Test handling of async functions."""
         code = """async def async_func():
     await some_coroutine()"""
-        
+
         source_info = SourceInfo(
             source_id="550e8400-e29b-41d4-a716-446655440000",
             file_path="test.py",
@@ -357,7 +356,7 @@ def decorated_func():
         ast_tree = ast.parse(code)
         builder = GraphBuilder(ast_tree, source_info)
         graph = builder.build_graph()
-        
+
         # Check AsyncFunctionDef node exists
         async_func_nodes = [n for n in graph.nodes.values() if n.node_type == "AsyncFunctionDef"]
         assert len(async_func_nodes) == 1
@@ -368,7 +367,7 @@ def decorated_func():
         code = """x = 42
 y = x + 1
 z = func(y)"""
-        
+
         source_info = SourceInfo(
             source_id="550e8400-e29b-41d4-a716-446655440000",
             file_path="test.py",
@@ -381,15 +380,15 @@ z = func(y)"""
         ast_tree = ast.parse(code)
         builder = GraphBuilder(ast_tree, source_info)
         graph = builder.build_graph()
-        
+
         # Check Assign nodes
         assign_nodes = [n for n in graph.nodes.values() if n.node_type == "Assign"]
         assert len(assign_nodes) == 3
-        
+
         # Check Name nodes
         name_nodes = [n for n in graph.nodes.values() if n.node_type == "Name"]
         assert len(name_nodes) >= 5  # x, y, z as targets and x, y as references
-        
+
         # Check that we have both DEFINES and REFERENCES edges
         edge_types = {e.edge_type for e in graph.edges}
         assert EdgeType.DEFINES in edge_types
@@ -405,7 +404,7 @@ z = func(y)"""
     else:
         return None
     return result"""
-        
+
         source_info = SourceInfo(
             source_id="550e8400-e29b-41d4-a716-446655440000",
             file_path="test.py",
@@ -418,20 +417,20 @@ z = func(y)"""
         ast_tree = ast.parse(code)
         builder = GraphBuilder(ast_tree, source_info)
         graph = builder.build_graph()
-        
+
         # Check control flow nodes
         if_nodes = [n for n in graph.nodes.values() if n.node_type == "If"]
         assert len(if_nodes) == 1
         assert if_nodes[0].label == "conditional"
-        
+
         for_nodes = [n for n in graph.nodes.values() if n.node_type == "For"]
         assert len(for_nodes) == 1
         assert for_nodes[0].label == "loop"
-        
+
         # Check Call nodes
         call_nodes = [n for n in graph.nodes.values() if n.node_type == "Call"]
         assert len(call_nodes) >= 2  # transform() and print()
-        
+
         # Check Return nodes
         return_nodes = [n for n in graph.nodes.values() if n.node_type == "Return"]
         assert len(return_nodes) == 2

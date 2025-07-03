@@ -4,18 +4,13 @@
 エラーケースを網羅的にテストする。
 """
 import os
-import sys
 from pathlib import Path
-from typing import Dict, List, Optional
 
 import pytest
 
-from ast2graph import parse_code, parse_directory, parse_file, parse_files_stream
+from ast2graph import parse_directory, parse_file, parse_files_stream
 from ast2graph.exceptions import (
-    AST2GraphError,
     ParseError,
-    GraphBuildError,
-    ValidationError,
 )
 
 
@@ -36,7 +31,7 @@ def broken_function(
         # Act & Assert
         with pytest.raises(ParseError) as exc_info:
             parse_file(str(file_path))
-        
+
         assert "syntax" in str(exc_info.value).lower()
 
     def test_multiple_syntax_errors(self, tmp_path: Path) -> None:
@@ -102,7 +97,7 @@ return "Bad indent"  # No indentation
         # Act & Assert
         with pytest.raises(ParseError) as exc_info:
             parse_file(str(file_path))
-        
+
         error_msg = str(exc_info.value).lower()
         assert "indent" in error_msg or "syntax" in error_msg
 
@@ -159,7 +154,7 @@ def greet():
         # Act & Assert
         with pytest.raises(ParseError) as exc_info:
             parse_file(str(file_path))
-        
+
         assert "decod" in str(exc_info.value).lower() or "encod" in str(exc_info.value).lower()
 
     def test_mixed_encoding_in_directory(self, tmp_path: Path) -> None:
@@ -167,14 +162,14 @@ def greet():
         # Arrange
         project = tmp_path / "mixed_encoding"
         project.mkdir()
-        
+
         # UTF-8ファイル
         (project / "utf8.py").write_text('def func(): return "UTF-8"', encoding='utf-8')
-        
+
         # Latin-1ファイル
         latin1_code = '# -*- coding: latin-1 -*-\ndef func(): return "Café"'
         (project / "latin1.py").write_bytes(latin1_code.encode('latin-1'))
-        
+
         # ASCII ファイル
         (project / "ascii.py").write_text('def func(): return "ASCII"')
 
@@ -184,7 +179,7 @@ def greet():
         # Assert
         assert len(results) == 3
         # エラーが発生したファイルもresultsに含まれる（エラー情報付き）
-        for file_path, result in results.items():
+        for _file_path, result in results.items():
             assert isinstance(result, dict)
             # 成功したファイルにはnodesが含まれる
             if "error" not in result:
@@ -199,7 +194,7 @@ class TestCircularReferences:
         # Arrange
         project = tmp_path / "circular"
         project.mkdir()
-        
+
         # a.py imports b
         (project / "a.py").write_text('''
 from . import b
@@ -207,7 +202,7 @@ from . import b
 def func_a():
     return b.func_b() + " from a"
 ''')
-        
+
         # b.py imports a
         (project / "b.py").write_text('''
 from . import a
@@ -224,7 +219,7 @@ def use_a():
 
         # Assert
         assert len(results) == 2
-        
+
         # 両方のファイルが正常に解析される
         for file_path in results:
             assert results[file_path] is not None
@@ -236,7 +231,7 @@ def use_a():
         # Arrange
         project = tmp_path / "complex_circular"
         project.mkdir()
-        
+
         # A -> B -> C -> D -> A の循環
         modules = {
             "module_a.py": '''
@@ -269,7 +264,7 @@ class D:
         return module_a.A()
 '''
         }
-        
+
         for filename, content in modules.items():
             (project / filename).write_text(content)
 
@@ -278,9 +273,9 @@ class D:
 
         # Assert
         assert len(results) == 4
-        
+
         # 各モジュールのインポート関係を確認
-        for file_path, result in results.items():
+        for _file_path, result in results.items():
             edges = result["edges"]
             import_edges = [e for e in edges if e["type"] == "IMPORTS"]
             assert len(import_edges) >= 1  # 各モジュールが次のモジュールをインポート
@@ -310,7 +305,7 @@ class SelfReferential:
         # Assert
         assert result is not None
         nodes = result["nodes"]
-        
+
         # 再帰関数の確認
         func_nodes = [n for n in nodes if n["type"] == "FunctionDef"]
         assert any(n["properties"]["name"] == "recursive_function" for n in func_nodes)
@@ -330,7 +325,7 @@ class TestLargeFileHandling:
                 f"    result = x + y + {i}",
                 f"    return result * {i + 1}",
             ])
-        
+
         code = "\n".join(lines)
         file_path = tmp_path / "many_functions.py"
         file_path.write_text(code)
@@ -343,7 +338,7 @@ class TestLargeFileHandling:
         nodes = result["nodes"]
         func_nodes = [n for n in nodes if n["type"] == "FunctionDef"]
         assert len(func_nodes) == 500
-        
+
         # メタデータの確認
         metadata = result["metadata"]
         assert metadata["total_nodes"] > 500  # 関数以外のノードも含む
@@ -353,14 +348,14 @@ class TestLargeFileHandling:
         """深いネスト構造を持つファイル."""
         # Arrange
         lines = ['"""Deeply nested structure."""']
-        
+
         # 深くネストした条件文
         indent = ""
         for i in range(20):  # 20レベルのネスト
             lines.append(f"{indent}if True:  # Level {i}")
             indent += "    "
         lines.append(f'{indent}result = "Deep!"')
-        
+
         # 深くネストしたクラス定義
         lines.append("\n\nclass OuterClass:")
         indent = "    "
@@ -368,7 +363,7 @@ class TestLargeFileHandling:
             lines.append(f"{indent}class InnerClass{i}:")
             indent += "    "
         lines.append(f"{indent}pass")
-        
+
         code = "\n".join(lines)
         file_path = tmp_path / "deep_nesting.py"
         file_path.write_text(code)
@@ -379,11 +374,11 @@ class TestLargeFileHandling:
         # Assert
         assert result is not None
         nodes = result["nodes"]
-        
+
         # ネストした構造が正しく解析されているか
         if_nodes = [n for n in nodes if n["type"] == "If"]
         assert len(if_nodes) >= 20
-        
+
         class_nodes = [n for n in nodes if n["type"] == "ClassDef"]
         assert len(class_nodes) >= 10
 
@@ -391,24 +386,24 @@ class TestLargeFileHandling:
         """大きなデータ構造を含むファイル."""
         # Arrange
         lines = ['"""File with large data structures."""']
-        
+
         # 大きなリスト
         lines.append("\nlarge_list = [")
         for i in range(1000):
             lines.append(f"    {i},")
         lines.append("]")
-        
+
         # 大きな辞書
         lines.append("\nlarge_dict = {")
         for i in range(500):
             lines.append(f'    "key_{i}": {i * 2},')
         lines.append("}")
-        
+
         # 大きなタプル
         lines.append("\nlarge_tuple = (")
         lines.extend([f"    {i}," for i in range(500)])
         lines.append(")")
-        
+
         code = "\n".join(lines)
         file_path = tmp_path / "large_data.py"
         file_path.write_text(code)
@@ -419,16 +414,16 @@ class TestLargeFileHandling:
         # Assert
         assert result is not None
         nodes = result["nodes"]
-        
+
         # 代入文の確認
         assign_nodes = [n for n in nodes if n["type"] == "Assign"]
         assert len(assign_nodes) >= 3  # large_list, large_dict, large_tuple
-        
+
         # リスト、辞書、タプルノードの存在確認
         list_nodes = [n for n in nodes if n["type"] == "List"]
         dict_nodes = [n for n in nodes if n["type"] == "Dict"]
         tuple_nodes = [n for n in nodes if n["type"] == "Tuple"]
-        
+
         assert len(list_nodes) >= 1
         assert len(dict_nodes) >= 1
         assert len(tuple_nodes) >= 1
@@ -442,15 +437,15 @@ class TestErrorRecoveryStrategies:
         # Arrange
         project = tmp_path / "mixed_files"
         project.mkdir()
-        
+
         # 正常なファイル
         (project / "good1.py").write_text('def good(): return "OK"')
         (project / "good2.py").write_text('class Good: pass')
-        
+
         # エラーを含むファイル
         (project / "bad_syntax.py").write_text('def bad syntax():')
         (project / "bad_encoding.py").write_bytes(b'\xff\xfe\x00\x00')
-        
+
         # 正常なファイル
         (project / "good3.py").write_text('x = 42')
 
@@ -459,12 +454,12 @@ class TestErrorRecoveryStrategies:
 
         # Assert
         assert len(results) == 5  # 全ファイル分の結果
-        
+
         # 正常なファイルは解析成功
         assert "error" not in results[str(project / "good1.py")]
         assert "error" not in results[str(project / "good2.py")]
         assert "error" not in results[str(project / "good3.py")]
-        
+
         # エラーファイルはerrorキーを含む
         assert "error" in results[str(project / "bad_syntax.py")]
         assert "error" in results[str(project / "bad_encoding.py")]
@@ -473,7 +468,7 @@ class TestErrorRecoveryStrategies:
         """ストリーミング処理での混在エラー処理."""
         # Arrange
         files = []
-        
+
         # 様々な種類のファイルを作成
         for i in range(10):
             if i % 3 == 0:
@@ -488,7 +483,7 @@ class TestErrorRecoveryStrategies:
                 # エンコーディングエラー
                 file_path = tmp_path / f"encoding_error_{i}.py"
                 file_path.write_bytes(b'\xff\xfe' + f"invalid {i}".encode('ascii', errors='ignore'))
-            
+
             files.append(str(file_path))
 
         # Act
@@ -496,11 +491,11 @@ class TestErrorRecoveryStrategies:
 
         # Assert
         assert len(results) == 10
-        
+
         # 正常なファイルの数を確認
         valid_results = [r for r in results if "graph" in r]
         assert len(valid_results) == 3  # i % 3 == 1 のケース
-        
+
         # エラーファイルの数を確認
         error_results = [r for r in results if "error" in r]
         assert len(error_results) == 7  # 残りのケース
@@ -547,20 +542,20 @@ if (n := len([1, 2, 3])) > 2:
         # Arrange
         file_path = tmp_path / "readonly.py"
         file_path.write_text('def test(): return "OK"')
-        
+
         # ファイルを読み取り専用に設定
         os.chmod(file_path, 0o444)
-        
+
         try:
             # Act - 読み取りは成功するはず
             result = parse_file(str(file_path))
-            
+
             # Assert
             assert result is not None
             nodes = result["nodes"]
             func_nodes = [n for n in nodes if n["type"] == "FunctionDef"]
             assert len(func_nodes) == 1
-            
+
         finally:
             # クリーンアップ：権限を戻す
             os.chmod(file_path, 0o644)
@@ -569,7 +564,7 @@ if (n := len([1, 2, 3])) > 2:
         """存在しないファイルの処理."""
         # Arrange
         non_existent = "/path/to/non/existent/file.py"
-        
+
         # Act & Assert
         with pytest.raises(FileNotFoundError):
             parse_file(non_existent)
@@ -621,7 +616,7 @@ This is just a string literal, not a docstring.
         # Assert
         assert result is not None
         nodes = result["nodes"]
-        
+
         # モジュールレベルの文字列リテラルは Expr ノードとして解析される
         expr_nodes = [n for n in nodes if n["type"] == "Expr"]
         assert len(expr_nodes) >= 1
@@ -632,10 +627,10 @@ This is just a string literal, not a docstring.
         # 10000文字の変数名
         long_var_name = "x" * 10000
         code = f'{long_var_name} = 42\n'
-        
+
         # 1000個の要素を持つリスト（1行）
         code += 'long_list = [' + ', '.join(str(i) for i in range(1000)) + ']\n'
-        
+
         file_path = tmp_path / "long_lines.py"
         file_path.write_text(code)
 
@@ -672,11 +667,11 @@ class 日本語クラス:
         # Assert
         assert result is not None
         nodes = result["nodes"]
-        
+
         # Unicode関数名
         func_nodes = [n for n in nodes if n["type"] == "FunctionDef"]
         assert any(n["properties"]["name"] == "你好" for n in func_nodes)
-        
+
         # Unicodeクラス名
         class_nodes = [n for n in nodes if n["type"] == "ClassDef"]
         assert any(n["properties"]["name"] == "日本語クラス" for n in class_nodes)

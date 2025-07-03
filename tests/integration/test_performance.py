@@ -7,9 +7,6 @@ import hashlib
 import json
 import time
 from pathlib import Path
-from typing import Dict, List, Tuple
-
-import pytest
 
 from ast2graph import parse_code, parse_directory, parse_file, parse_files_stream
 
@@ -21,51 +18,51 @@ class TestProcessingSpeed:
         """単一ファイルの処理速度."""
         # Arrange - 中規模のファイル（1000行程度）
         lines = ['"""Performance test file."""']
-        
+
         # 100個の関数
         for i in range(100):
             lines.extend([
                 f"\ndef function_{i}(x, y, z):",
                 f'    """Function {i} documentation."""',
-                f"    result = x * y + z",
-                f"    for j in range(10):",
+                "    result = x * y + z",
+                "    for j in range(10):",
                 f"        result += j * {i}",
-                f"    return result",
+                "    return result",
             ])
-        
+
         # 50個のクラス
         for i in range(50):
             lines.extend([
                 f"\nclass Class_{i}:",
                 f'    """Class {i} documentation."""',
-                f"    ",
-                f"    def __init__(self, value):",
-                f"        self.value = value",
-                f"    ",
-                f"    def method(self):",
-                f"        return self.value * 2",
+                "    ",
+                "    def __init__(self, value):",
+                "        self.value = value",
+                "    ",
+                "    def method(self):",
+                "        return self.value * 2",
             ])
-        
+
         code = "\n".join(lines)
         file_path = tmp_path / "large_file.py"
         file_path.write_text(code)
-        
+
         # Act - 処理時間を測定
         start_time = time.time()
         result = parse_file(str(file_path))
         end_time = time.time()
-        
+
         processing_time = end_time - start_time
-        
+
         # Assert
         assert result is not None
         assert processing_time < 1.0  # 1秒以内に処理完了
-        
+
         # ノード数の確認
         nodes = result["nodes"]
         func_nodes = [n for n in nodes if n["type"] == "FunctionDef"]
         class_nodes = [n for n in nodes if n["type"] == "ClassDef"]
-        
+
         assert len(func_nodes) >= 150  # 100個の関数 + 50個のクラスメソッド
         assert len(class_nodes) == 50
 
@@ -74,13 +71,13 @@ class TestProcessingSpeed:
         # Arrange - 300個のファイルを作成
         project = tmp_path / "large_project"
         project.mkdir()
-        
+
         # モジュール構造を作成
         for i in range(10):  # 10個のパッケージ
             package = project / f"package_{i}"
             package.mkdir()
             (package / "__init__.py").write_text(f'"""Package {i}."""')
-            
+
             for j in range(30):  # 各パッケージに30ファイル
                 module_content = f'''
 """Module {i}.{j}."""
@@ -94,24 +91,24 @@ def function_b(x, y):
 class Module{i}_{j}:
     def __init__(self):
         self.value = {i * 10 + j}
-    
+
     def process(self):
         return self.value * 2
 '''
                 (package / f"module_{j}.py").write_text(module_content)
-        
+
         # Act - 処理時間を測定
         start_time = time.time()
         results = parse_directory(str(project), recursive=True)
         end_time = time.time()
-        
+
         processing_time = end_time - start_time
         files_processed = len(results)
-        
+
         # Assert
         assert files_processed >= 300  # 300ファイル以上処理
         assert processing_time < 600  # 10分（600秒）以内
-        
+
         # 1ファイルあたりの平均処理時間
         avg_time_per_file = processing_time / files_processed
         assert avg_time_per_file < 2.0  # 1ファイルあたり2秒以内
@@ -132,25 +129,25 @@ def process_{i}(data):
 class Processor_{i}:
     def __init__(self):
         self.threshold = {i}
-    
+
     def run(self, data):
         return process_{i}(data)
 '''
             file_path = tmp_path / f"stream_{i}.py"
             file_path.write_text(content)
             file_paths.append(str(file_path))
-        
+
         # Act - ストリーミング処理時間
         start_time = time.time()
         processed_count = 0
-        
+
         for file_path, result in parse_files_stream(file_paths):
             if result is not None:
                 processed_count += 1
-        
+
         end_time = time.time()
         streaming_time = end_time - start_time
-        
+
         # Assert
         assert processed_count == 100
         assert streaming_time < 60  # 1分以内に100ファイル処理
@@ -165,7 +162,7 @@ def complex_function(data, options=None):
     """Process data with complex logic."""
     if options is None:
         options = {}
-    
+
     result = []
     for i, item in enumerate(data):
         if isinstance(item, dict):
@@ -192,17 +189,17 @@ def complex_function(data, options=None):
             for sub_item in item:
                 if sub_item:
                     result.extend(complex_function([sub_item], options))
-    
+
     return result
 
 class ComplexProcessor:
     """Complex data processor with multiple methods."""
-    
+
     def __init__(self, config):
         self.config = config
         self._cache = {}
         self._initialized = False
-    
+
     def initialize(self):
         """Initialize the processor."""
         if not self._initialized:
@@ -210,7 +207,7 @@ class ComplexProcessor:
                 if isinstance(value, dict):
                     self._cache[key] = self._process_config(value)
             self._initialized = True
-    
+
     def _process_config(self, config):
         """Process configuration recursively."""
         result = {}
@@ -220,12 +217,12 @@ class ComplexProcessor:
             else:
                 result[k] = v
         return result
-    
+
     def process(self, data):
         """Main processing method."""
         self.initialize()
         return [self._process_item(item) for item in data]
-    
+
     def _process_item(self, item):
         """Process a single item."""
         if isinstance(item, dict):
@@ -235,23 +232,23 @@ class ComplexProcessor:
         else:
             return item
 '''
-        
+
         # 上記のコードを10回繰り返して大きなファイルを作成
         large_code = "\n\n".join([code] * 10)
         file_path = tmp_path / "complex.py"
         file_path.write_text(large_code)
-        
+
         # Act
         start_time = time.time()
         result = parse_file(str(file_path))
         end_time = time.time()
-        
+
         processing_time = end_time - start_time
-        
+
         # Assert
         assert result is not None
         assert processing_time < 5.0  # 5秒以内に処理
-        
+
         # 複雑さの確認
         nodes = result["nodes"]
         assert len(nodes) > 1000  # 多数のノード
@@ -272,24 +269,24 @@ class TestMemoryUsage:
                     f"    return {i}",
                     ""
                 ])
-        
+
         code = "\n".join(lines)
         file_path = tmp_path / "memory_test.py"
         file_path.write_text(code)
-        
+
         # Act - ガベージコレクションを実行してからメモリ測定
         gc.collect()
-        
+
         # メモリ使用量の簡易測定（実際のメモリプロファイリングは別途必要）
         result = parse_file(str(file_path))
-        
+
         # Assert
         assert result is not None
-        
+
         # 結果のサイズを確認（JSONシリアライズ後）
         json_str = json.dumps(result)
         result_size_mb = len(json_str) / (1024 * 1024)
-        
+
         assert result_size_mb < 10  # 結果サイズが10MB未満
 
     def test_streaming_memory_efficiency(self, tmp_path: Path) -> None:
@@ -300,16 +297,16 @@ class TestMemoryUsage:
             lines = [f"# File {i}"]
             for j in range(100):
                 lines.append(f"var_{i}_{j} = {i * j}")
-            
+
             file_path = tmp_path / f"stream_mem_{i}.py"
             file_path.write_text("\n".join(lines))
             file_paths.append(str(file_path))
-        
+
         # Act - ストリーミング処理（結果を保持しない）
         gc.collect()
         processed = 0
         max_nodes = 0
-        
+
         for result_dict in parse_files_stream(file_paths):
             if "graph" in result_dict:
                 result = result_dict["graph"]
@@ -317,9 +314,9 @@ class TestMemoryUsage:
                 max_nodes = max(max_nodes, result["metadata"]["total_nodes"])
                 # 結果をすぐに破棄（メモリ効率的）
                 del result
-        
+
         gc.collect()
-        
+
         # Assert
         assert processed == 50
         assert max_nodes > 0
@@ -331,7 +328,7 @@ class TestMemoryUsage:
         code = '''
 """Large graph structure test."""
 '''
-        
+
         # 200個のクラスと相互参照
         for i in range(200):
             code += f'''
@@ -350,28 +347,28 @@ class Class{i}:
     def use_next(self):
         return Class{i+1}()
 '''
-        
+
         file_path = tmp_path / "large_graph.py"
         file_path.write_text(code)
-        
+
         # Act
         gc.collect()
         result = parse_file(str(file_path), include_dependencies=True)
-        
+
         # Assert
         assert result is not None
-        
+
         # グラフのサイズ確認
         nodes = result["nodes"]
         edges = result["edges"]
-        
+
         assert len(nodes) > 600  # 200クラス + メソッド
         assert len(edges) > 400  # 親子関係 + 依存関係
-        
+
         # メモリ効率の確認（概算）
         json_size = len(json.dumps(result))
         size_per_node = json_size / len(nodes)
-        
+
         assert size_per_node < 1000  # 1ノードあたり1KB未満
 
 
@@ -391,26 +388,26 @@ def function2():
 class MyClass:
     def method1(self):
         return function1()
-    
+
     def method2(self):
         return function2()
 '''
-        
+
         # Act - 同じコードを3回解析
         results = []
         for i in range(3):
             result = parse_code(code, filename=f"test_{i}.py")
             results.append(result)
-        
+
         # Assert - ノードIDの一貫性を確認
         for i in range(1, 3):
             nodes1 = sorted(results[0]["nodes"], key=lambda n: n["id"])
             nodes2 = sorted(results[i]["nodes"], key=lambda n: n["id"])
-            
+
             assert len(nodes1) == len(nodes2)
-            
+
             # 同じ位置のノードが同じ型とプロパティを持つ
-            for n1, n2 in zip(nodes1, nodes2):
+            for n1, n2 in zip(nodes1, nodes2, strict=False):
                 assert n1["type"] == n2["type"]
                 assert n1["properties"] == n2["properties"]
 
@@ -431,26 +428,26 @@ def calculate(values: List[float]) -> float:
 class Calculator:
     def __init__(self):
         self.history = []
-    
+
     def compute(self, values: List[float]) -> float:
         result = calculate(values)
         self.history.append(result)
         return result
 '''
-        
+
         # Act - 複数回解析して結果を比較
         results = []
         for _ in range(5):
             result = parse_code(code, include_dependencies=True)
             results.append(result)
-        
+
         # Assert - エッジの一貫性
         reference_edges = sorted(results[0]["edges"], key=lambda e: (e["source"], e["target"], e["type"]))
-        
+
         for i in range(1, 5):
             current_edges = sorted(results[i]["edges"], key=lambda e: (e["source"], e["target"], e["type"]))
             assert len(reference_edges) == len(current_edges)
-            
+
             # エッジタイプの分布が同じ
             ref_types = [e["type"] for e in reference_edges]
             cur_types = [e["type"] for e in current_edges]
@@ -478,10 +475,10 @@ def factory(type_name):
 # 使用例
 instances = [factory(t)() for t in ["A", "B", "C"]]
 '''
-        
+
         # Act - 結果のハッシュを計算
         hashes = []
-        for i in range(10):
+        for _i in range(10):
             result = parse_code(code)
             # 非決定的なフィールドを除外
             if "source_info" in result:
@@ -500,7 +497,7 @@ instances = [factory(t)() for t in ["A", "B", "C"]]
             json_str = json.dumps(result, sort_keys=True)
             hash_value = hashlib.sha256(json_str.encode()).hexdigest()
             hashes.append(hash_value)
-        
+
         # Assert - すべてのハッシュが同一
         assert len(set(hashes)) == 1, "Results are not deterministic"
 
@@ -512,28 +509,28 @@ instances = [factory(t)() for t in ["A", "B", "C"]]
             "b.py": "class B: pass",
             "c.py": "class C: pass"
         }
-        
+
         for name, content in files.items():
             (tmp_path / name).write_text(content)
-        
+
         # Act - 異なる順序で処理
         file_paths1 = [str(tmp_path / name) for name in ["a.py", "b.py", "c.py"]]
         file_paths2 = [str(tmp_path / name) for name in ["c.py", "a.py", "b.py"]]
         file_paths3 = [str(tmp_path / name) for name in ["b.py", "c.py", "a.py"]]
-        
+
         results1 = list(parse_files_stream(file_paths1))
         results2 = list(parse_files_stream(file_paths2))
         results3 = list(parse_files_stream(file_paths3))
-        
+
         # Assert - 各ファイルの結果が順序に依存しない
         for path in file_paths1:
             # 各結果セットから同じファイルの結果を取得
             r1 = next((r["graph"] for r in results1 if r["file_path"] == path and "graph" in r), None)
             r2 = next((r["graph"] for r in results2 if r["file_path"] == path and "graph" in r), None)
             r3 = next((r["graph"] for r in results3 if r["file_path"] == path and "graph" in r), None)
-            
+
             assert r1 is not None and r2 is not None and r3 is not None
-            
+
             # ノード数とエッジ数が同じ
             assert r1["metadata"]["total_nodes"] == r2["metadata"]["total_nodes"] == r3["metadata"]["total_nodes"]
             assert r1["metadata"]["total_edges"] == r2["metadata"]["total_edges"] == r3["metadata"]["total_edges"]
@@ -554,15 +551,15 @@ def fibonacci(n):
 for i in range(10):
     print(fibonacci(i))
 '''
-        
+
         # Act - 同じコードを複数回解析
         times = []
-        for i in range(5):
+        for _i in range(5):
             start = time.time()
-            result = parse_code(code)
+            parse_code(code)
             end = time.time()
             times.append(end - start)
-        
+
         # Assert
         # 現在はキャッシングなしだが、将来の最適化で
         # 2回目以降が速くなることを期待
@@ -578,7 +575,7 @@ def function1():
 def function2():
     return 2
 '''
-        
+
         modified_code = '''
 def function1():
     return 1
@@ -589,15 +586,15 @@ def function2():
 def function3():  # 新規追加
     return 3
 '''
-        
+
         # Act
         base_result = parse_code(base_code)
         modified_result = parse_code(modified_code)
-        
+
         # Assert - 変更部分の特定（将来の最適化用）
         base_nodes = base_result["nodes"]
         modified_nodes = modified_result["nodes"]
-        
+
         # 新規ノードの数
         new_nodes_count = len(modified_nodes) - len(base_nodes)
         assert new_nodes_count > 0  # 新しい関数が追加されている
@@ -617,7 +614,7 @@ def process_{i}(data):
             file_path = tmp_path / f"parallel_{i}.py"
             file_path.write_text(code)
             files.append(str(file_path))
-        
+
         # Act - シーケンシャル処理時間
         start = time.time()
         sequential_results = []
@@ -625,12 +622,12 @@ def process_{i}(data):
             result = parse_file(file_path)
             sequential_results.append(result)
         sequential_time = time.time() - start
-        
+
         # Act - ストリーミング処理時間（現在は並列化なし）
         start = time.time()
         streaming_results = list(parse_files_stream(files))
-        streaming_time = time.time() - start
-        
+        time.time() - start
+
         # Assert
         assert len(sequential_results) == len(streaming_results) == 20
         # 将来の並列化実装で streaming_time < sequential_time となることを期待
