@@ -10,7 +10,8 @@ import functools
 import re
 import subprocess
 import sys
-from typing import Iterator, NamedTuple, Sequence
+from collections.abc import Iterator, Sequence
+from typing import NamedTuple
 
 from ._elffile import ELFFile
 
